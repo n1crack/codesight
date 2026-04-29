@@ -20,10 +20,14 @@
   },
   "sidebar": {
     "repositories": "Repositories",
-    "addRepo": "Add Repository",
-    "scanFolder": "Scan Folder",
-    "noRepos": "No repositories yet. Add one or scan a folder.",
-    "remove": "Remove"
+    "addRepo": "Add repository",
+    "scanFolder": "Scan folder for repos",
+    "noReposTitle": "No repositories",
+    "noReposBody": "Add a single repo or scan a folder to get started.",
+    "remove": "Remove repository",
+    "confirmRemove": "Remove \"{{name}}\" from codesight? Files on disk are not affected.",
+    "filterPlaceholder": "Filter repos…",
+    "noMatch": "No repos match"
   },
   "common": {
     "loading": "Loading…",

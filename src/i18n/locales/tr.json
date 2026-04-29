@@ -20,10 +20,14 @@
   },
   "sidebar": {
     "repositories": "Depolar",
-    "addRepo": "Depo Ekle",
-    "scanFolder": "Klasör Tara",
-    "noRepos": "Henüz depo yok. Bir tane ekleyin veya klasör tarayın.",
-    "remove": "Kaldır"
+    "addRepo": "Depo ekle",
+    "scanFolder": "Klasörden depo tara",
+    "noReposTitle": "Henüz depo yok",
+    "noReposBody": "Bir depo ekleyin veya bir klasörü tarayarak başlayın.",
+    "remove": "Depoyu kaldır",
+    "confirmRemove": "\"{{name}}\" codesight'tan kaldırılsın mı? Diskteki dosyalar etkilenmez.",
+    "filterPlaceholder": "Depo filtrele…",
+    "noMatch": "Eşleşen depo yok"
   },
   "common": {
     "loading": "Yükleniyor…",
