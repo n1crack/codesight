@@ -13,6 +13,7 @@
     "contributors": "Katkıda Bulunanlar",
     "ownership": "Sahiplik",
     "search": "Arama",
+    "graph": "Grafik",
     "comparison": "Karşılaştırma",
     "settings": "Ayarlar"
   },
@@ -154,6 +155,12 @@
     "share": "pay",
     "distinctAuthors": "yazar",
     "commits": "commit"
+  },
+  "graph": {
+    "title": "Commit grafiği",
+    "subtitle": "Tüm dallar üzerinden commit DAG'ı (yerel)",
+    "limit": "Göster",
+    "noCommits": "Henüz commit yok"
   },
   "settings": {
     "title": "Ayarlar",

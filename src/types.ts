@@ -158,3 +158,19 @@ export interface OwnershipReport {
   topAuthors: AuthorShare[];
   files: FileOwnership[];
 }
+
+export interface GraphRef {
+  kind: "HEAD" | "head" | "remote" | "tag";
+  name: string;
+}
+
+export interface GraphCommit {
+  id: string;
+  shortId: string;
+  parents: string[];
+  authorName: string;
+  authorEmail: string;
+  timestamp: string;
+  summary: string;
+  refs: GraphRef[];
+}

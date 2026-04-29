@@ -190,6 +190,26 @@ pub struct OwnershipReport {
     pub files: Vec<FileOwnership>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphCommit {
+    pub id: String,
+    pub short_id: String,
+    pub parents: Vec<String>,
+    pub author_name: String,
+    pub author_email: String,
+    pub timestamp: String,
+    pub summary: String,
+    pub refs: Vec<GraphRef>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphRef {
+    pub kind: String, // "head" | "remote" | "tag" | "HEAD"
+    pub name: String,
+}
+
 fn open(path: &str) -> AppResult<GitRepository> {
     GitRepository::open(path).map_err(|_| AppError::NotARepo(path.into()))
 }
@@ -1427,6 +1447,110 @@ pub fn get_ownership_report_impl(
         top_authors,
         files,
     })
+}
+
+pub fn get_commit_graph_impl(
+    db: &crate::db::Db,
+    id: i64,
+    limit: usize,
+) -> AppResult<Vec<GraphCommit>> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = open(&repo_meta.path)?;
+
+    let limit = limit.clamp(1, 2000);
+
+    let mut refs_by_oid: HashMap<git2::Oid, Vec<GraphRef>> = HashMap::new();
+
+    let head_oid = repo.head().ok().and_then(|h| h.target());
+    if let Some(oid) = head_oid {
+        refs_by_oid.entry(oid).or_default().push(GraphRef {
+            kind: "HEAD".into(),
+            name: "HEAD".into(),
+        });
+    }
+
+    if let Ok(branches) = repo.branches(None) {
+        for b in branches {
+            let Ok((branch, btype)) = b else { continue };
+            let Ok(Some(name)) = branch.name() else {
+                continue;
+            };
+            let Some(oid) = branch.get().target() else {
+                continue;
+            };
+            let kind = match btype {
+                git2::BranchType::Local => "head",
+                git2::BranchType::Remote => "remote",
+            };
+            refs_by_oid.entry(oid).or_default().push(GraphRef {
+                kind: kind.into(),
+                name: name.to_string(),
+            });
+        }
+    }
+
+    let _ = repo.tag_foreach(|oid, name_bytes| {
+        let raw = std::str::from_utf8(name_bytes).unwrap_or("");
+        let short = raw.strip_prefix("refs/tags/").unwrap_or(raw).to_string();
+        let resolved = repo
+            .find_object(oid, None)
+            .and_then(|o| o.peel(git2::ObjectType::Commit))
+            .map(|c| c.id())
+            .unwrap_or(oid);
+        refs_by_oid.entry(resolved).or_default().push(GraphRef {
+            kind: "tag".into(),
+            name: short,
+        });
+        true
+    });
+
+    let mut walk = repo.revwalk()?;
+    walk.set_sorting(Sort::TIME | Sort::TOPOLOGICAL)?;
+    walk.push_glob("refs/heads/*")?;
+    let _ = walk.push_glob("refs/remotes/*");
+    let _ = walk.push_glob("refs/tags/*");
+
+    let mut out: Vec<GraphCommit> = Vec::with_capacity(limit);
+    let mut seen: std::collections::HashSet<git2::Oid> = std::collections::HashSet::new();
+    for oid_result in walk {
+        if out.len() >= limit {
+            break;
+        }
+        let oid = oid_result?;
+        if !seen.insert(oid) {
+            continue;
+        }
+        let commit = repo.find_commit(oid)?;
+        let ts = commit_time(&commit);
+        let id_str = oid.to_string();
+        let short_id: String = id_str.chars().take(7).collect();
+        let parents: Vec<String> = commit.parent_ids().map(|p| p.to_string()).collect();
+        let mut refs = refs_by_oid.get(&oid).cloned().unwrap_or_default();
+        refs.sort_by(|a, b| {
+            let order = |k: &str| match k {
+                "HEAD" => 0,
+                "head" => 1,
+                "remote" => 2,
+                "tag" => 3,
+                _ => 4,
+            };
+            order(&a.kind)
+                .cmp(&order(&b.kind))
+                .then_with(|| a.name.cmp(&b.name))
+        });
+        out.push(GraphCommit {
+            id: id_str,
+            short_id,
+            parents,
+            author_name: commit.author().name().unwrap_or("unknown").to_string(),
+            author_email: commit.author().email().unwrap_or("").to_string(),
+            timestamp: ts.to_rfc3339(),
+            summary: commit.summary().unwrap_or("").to_string(),
+            refs,
+        });
+    }
+
+    Ok(out)
 }
 
 fn classify_language(filename: &str) -> &'static str {

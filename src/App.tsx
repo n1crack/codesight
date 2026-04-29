@@ -11,6 +11,7 @@ import { ContributorsPage } from "@/pages/ContributorsPage";
 import { ContributorDetailPage } from "@/pages/ContributorDetailPage";
 import { OwnershipPage } from "@/pages/OwnershipPage";
 import { SearchPage } from "@/pages/SearchPage";
+import { GraphPage } from "@/pages/GraphPage";
 import { ComparisonPage } from "@/pages/ComparisonPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
       { path: "contributors/:email", element: <ContributorDetailPage /> },
       { path: "ownership", element: <OwnershipPage /> },
       { path: "search", element: <SearchPage /> },
+      { path: "graph", element: <GraphPage /> },
       { path: "comparison", element: <ComparisonPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],

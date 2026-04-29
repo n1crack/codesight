@@ -18,6 +18,7 @@ import {
   Users,
   Crown,
   Search,
+  GitGraph,
 } from "lucide-react";
 
 import { api, pickRepositoryDir, pickScanRoot } from "@/api";
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { to: "/ownership", icon: Crown, key: "nav.ownership" },
   { to: "/tags", icon: TagIcon, key: "nav.tags" },
   { to: "/search", icon: Search, key: "nav.search" },
+  { to: "/graph", icon: GitGraph, key: "nav.graph" },
   { to: "/comparison", icon: GitCompare, key: "nav.comparison" },
   { to: "/settings", icon: Settings, key: "nav.settings" },
 ] as const;

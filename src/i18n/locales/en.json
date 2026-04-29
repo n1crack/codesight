@@ -13,6 +13,7 @@
     "contributors": "Contributors",
     "ownership": "Ownership",
     "search": "Search",
+    "graph": "Graph",
     "comparison": "Comparison",
     "settings": "Settings"
   },
@@ -154,6 +155,12 @@
     "share": "share",
     "distinctAuthors": "authors",
     "commits": "commits"
+  },
+  "graph": {
+    "title": "Commit graph",
+    "subtitle": "DAG of commits across all branches (local)",
+    "limit": "Show",
+    "noCommits": "No commits yet"
   },
   "settings": {
     "title": "Settings",

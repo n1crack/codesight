@@ -10,6 +10,7 @@ import type {
   Contributor,
   ContributorDetail,
   FileHotspot,
+  GraphCommit,
   HeatmapData,
   LanguageStat,
   OwnershipReport,
@@ -66,6 +67,8 @@ export const api = {
     invoke<CommitInfo[]>("search_commits", { id, params }),
   getOwnershipReport: (id: number) =>
     invoke<OwnershipReport>("get_ownership_report", { id }),
+  getCommitGraph: (id: number, limit: number) =>
+    invoke<GraphCommit[]>("get_commit_graph", { id, limit }),
 };
 
 export async function pickRepositoryDir(): Promise<string | null> {
