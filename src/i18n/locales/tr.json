@@ -1,0 +1,80 @@
+{
+  "app": {
+    "name": "codesight",
+    "tagline": "Yerel git analitiği"
+  },
+  "nav": {
+    "overview": "Genel Bakış",
+    "heatmap": "Isı Haritası",
+    "timeline": "Zaman Çizelgesi",
+    "comparison": "Karşılaştırma",
+    "settings": "Ayarlar"
+  },
+  "sidebar": {
+    "repositories": "Depolar",
+    "addRepo": "Depo Ekle",
+    "scanFolder": "Klasör Tara",
+    "noRepos": "Henüz depo yok. Bir tane ekleyin veya klasör tarayın.",
+    "remove": "Kaldır"
+  },
+  "common": {
+    "loading": "Yükleniyor…",
+    "error": "Bir şeyler ters gitti",
+    "retry": "Yeniden dene",
+    "cancel": "İptal",
+    "ok": "Tamam",
+    "selectRepo": "Başlamak için bir depo seçin",
+    "noData": "Veri yok"
+  },
+  "overview": {
+    "title": "Genel Bakış",
+    "totalCommits": "Toplam commit",
+    "contributors": "Katkıda bulunanlar",
+    "branches": "Dallar",
+    "firstCommit": "İlk commit",
+    "lastCommit": "Son commit",
+    "topContributors": "En çok katkıda bulunanlar",
+    "languageBreakdown": "Diller",
+    "recentActivity": "Son etkinlik"
+  },
+  "heatmap": {
+    "title": "Katkı ısı haritası",
+    "year": "Yıl",
+    "less": "Az",
+    "more": "Çok",
+    "commitsOn": "{{date}} tarihinde {{count}} commit",
+    "commitsOn_one": "{{date}} tarihinde {{count}} commit",
+    "noCommits": "{{date}} tarihinde commit yok"
+  },
+  "timeline": {
+    "title": "Commit zaman çizelgesi",
+    "byWeek": "Haftalık",
+    "byMonth": "Aylık",
+    "byDay": "Günlük",
+    "commits": "Commit"
+  },
+  "comparison": {
+    "title": "Depo karşılaştırması",
+    "selectRepos": "Karşılaştırılacak depoları seçin",
+    "metric": "Metrik",
+    "metrics": {
+      "commits": "Haftalık commit",
+      "contributors": "Aktif katkıda bulunanlar",
+      "churn": "Kod değişimi"
+    }
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "language": "Dil",
+    "theme": "Tema",
+    "themeLight": "Açık",
+    "themeDark": "Koyu",
+    "themeSystem": "Sistem"
+  },
+  "errors": {
+    "notARepo": "Seçilen klasör bir git deposu değil.",
+    "noReposFound": "Seçilen klasörde git deposu bulunamadı.",
+    "scanFailed": "Klasör taraması başarısız: {{message}}",
+    "addFailed": "Depo eklenemedi: {{message}}"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "app": {
+    "name": "codesight",
+    "tagline": "Local-first git analytics"
+  },
+  "nav": {
+    "overview": "Overview",
+    "heatmap": "Heatmap",
+    "timeline": "Timeline",
+    "comparison": "Comparison",
+    "settings": "Settings"
+  },
+  "sidebar": {
+    "repositories": "Repositories",
+    "addRepo": "Add Repository",
+    "scanFolder": "Scan Folder",
+    "noRepos": "No repositories yet. Add one or scan a folder.",
+    "remove": "Remove"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "selectRepo": "Select a repository to begin",
+    "noData": "No data"
+  },
+  "overview": {
+    "title": "Overview",
+    "totalCommits": "Total commits",
+    "contributors": "Contributors",
+    "branches": "Branches",
+    "firstCommit": "First commit",
+    "lastCommit": "Last commit",
+    "topContributors": "Top contributors",
+    "languageBreakdown": "Languages",
+    "recentActivity": "Recent activity"
+  },
+  "heatmap": {
+    "title": "Contribution heatmap",
+    "year": "Year",
+    "less": "Less",
+    "more": "More",
+    "commitsOn": "{{count}} commits on {{date}}",
+    "commitsOn_one": "{{count}} commit on {{date}}",
+    "noCommits": "No commits on {{date}}"
+  },
+  "timeline": {
+    "title": "Commit timeline",
+    "byWeek": "By week",
+    "byMonth": "By month",
+    "byDay": "By day",
+    "commits": "Commits"
+  },
+  "comparison": {
+    "title": "Repo comparison",
+    "selectRepos": "Select repositories to compare",
+    "metric": "Metric",
+    "metrics": {
+      "commits": "Commits per week",
+      "contributors": "Active contributors",
+      "churn": "Code churn"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
+  },
+  "errors": {
+    "notARepo": "The selected folder is not a git repository.",
+    "noReposFound": "No git repositories found in the selected folder.",
+    "scanFailed": "Folder scan failed: {{message}}",
+    "addFailed": "Could not add repository: {{message}}"
+  }
+}
