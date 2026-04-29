@@ -12,10 +12,11 @@ use crate::analysis::{
     get_commit_message_stats_impl, get_commit_timeline_impl, get_contributor_detail_impl,
     get_contributor_heatmap_impl, get_contributor_recent_commits_impl,
     get_contributor_top_files_impl, get_file_hotspots_impl, get_language_breakdown_impl,
-    get_recent_commits_impl, get_repo_summary_impl, get_repos_sparklines_impl,
-    get_top_contributors_impl, list_branches_impl, list_tags_impl, ActivityPatterns, BranchInfo,
-    ChurnPoint, CommitInfo, CommitMessageStats, Contributor, ContributorDetail, FileHotspot,
-    HeatmapData, LanguageStat, RepoSparkline, RepoSummary, TagInfo, TimelinePoint,
+    get_ownership_report_impl, get_recent_commits_impl, get_repo_summary_impl,
+    get_repos_sparklines_impl, get_top_contributors_impl, list_branches_impl, list_tags_impl,
+    search_commits_impl, ActivityPatterns, BranchInfo, ChurnPoint, CommitInfo, CommitMessageStats,
+    Contributor, ContributorDetail, FileHotspot, HeatmapData, LanguageStat, OwnershipReport,
+    RepoSparkline, RepoSummary, SearchParams, TagInfo, TimelinePoint,
 };
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
@@ -263,6 +264,29 @@ async fn get_contributor_recent_commits(
     .unwrap()
 }
 
+#[tauri::command]
+async fn search_commits(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    params: SearchParams,
+) -> AppResult<Vec<CommitInfo>> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || search_commits_impl(&db, id, params))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn get_ownership_report(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+) -> AppResult<OwnershipReport> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || get_ownership_report_impl(&db, id))
+        .await
+        .unwrap()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -296,6 +320,8 @@ pub fn run() {
             get_contributor_heatmap,
             get_contributor_top_files,
             get_contributor_recent_commits,
+            search_commits,
+            get_ownership_report,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -11,6 +11,8 @@
     "branches": "Branches",
     "tags": "Releases",
     "contributors": "Contributors",
+    "ownership": "Ownership",
+    "search": "Search",
     "comparison": "Comparison",
     "settings": "Settings"
   },
@@ -126,6 +128,32 @@
     "topFiles": "Their top files",
     "recentCommits": "Recent commits",
     "openProfile": "View profile"
+  },
+  "search": {
+    "title": "Commit search",
+    "subtitle": "Filter commits by message, author, date or path",
+    "messagePlaceholder": "Search commit message…",
+    "authorPlaceholder": "author@example.com",
+    "pathPlaceholder": "path/contains",
+    "since": "Since",
+    "until": "Until",
+    "submit": "Search",
+    "results": "{{count}} results",
+    "noResults": "No commits match these filters",
+    "clear": "Clear"
+  },
+  "ownership": {
+    "title": "Code ownership",
+    "subtitle": "Bus factor & primary authorship",
+    "busFactor": "Bus factor",
+    "busFactorHint": "Min authors covering 50% of code changes",
+    "totalAuthors": "Total authors",
+    "topAuthors": "Top authors by share",
+    "fileOwnership": "File ownership (top 40)",
+    "primaryAuthor": "Primary",
+    "share": "share",
+    "distinctAuthors": "authors",
+    "commits": "commits"
   },
   "settings": {
     "title": "Settings",

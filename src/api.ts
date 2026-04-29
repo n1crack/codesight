@@ -12,9 +12,11 @@ import type {
   FileHotspot,
   HeatmapData,
   LanguageStat,
+  OwnershipReport,
   RepoSparkline,
   RepoSummary,
   Repository,
+  SearchParams,
   TagInfo,
   TimelineGranularity,
   TimelinePoint,
@@ -60,6 +62,10 @@ export const api = {
       email,
       limit,
     }),
+  searchCommits: (id: number, params: SearchParams) =>
+    invoke<CommitInfo[]>("search_commits", { id, params }),
+  getOwnershipReport: (id: number) =>
+    invoke<OwnershipReport>("get_ownership_report", { id }),
 };
 
 export async function pickRepositoryDir(): Promise<string | null> {

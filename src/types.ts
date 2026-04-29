@@ -124,3 +124,37 @@ export interface ContributorDetail {
   lastCommitAt: string | null;
   activeDays: number;
 }
+
+export interface SearchParams {
+  query?: string;
+  authorEmail?: string;
+  since?: string;
+  until?: string;
+  path?: string;
+  limit?: number;
+}
+
+export interface AuthorShare {
+  name: string;
+  email: string;
+  commits: number;
+  additions: number;
+  deletions: number;
+  sharePct: number;
+}
+
+export interface FileOwnership {
+  path: string;
+  primaryName: string;
+  primaryEmail: string;
+  primarySharePct: number;
+  distinctAuthors: number;
+  totalCommits: number;
+}
+
+export interface OwnershipReport {
+  busFactor: number;
+  totalAuthors: number;
+  topAuthors: AuthorShare[];
+  files: FileOwnership[];
+}

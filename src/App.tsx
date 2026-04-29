@@ -9,6 +9,8 @@ import { TagsPage } from "@/pages/TagsPage";
 import { BranchesPage } from "@/pages/BranchesPage";
 import { ContributorsPage } from "@/pages/ContributorsPage";
 import { ContributorDetailPage } from "@/pages/ContributorDetailPage";
+import { OwnershipPage } from "@/pages/OwnershipPage";
+import { SearchPage } from "@/pages/SearchPage";
 import { ComparisonPage } from "@/pages/ComparisonPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 
@@ -25,6 +27,8 @@ const router = createBrowserRouter([
       { path: "tags", element: <TagsPage /> },
       { path: "contributors", element: <ContributorsPage /> },
       { path: "contributors/:email", element: <ContributorDetailPage /> },
+      { path: "ownership", element: <OwnershipPage /> },
+      { path: "search", element: <SearchPage /> },
       { path: "comparison", element: <ComparisonPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],

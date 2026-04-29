@@ -16,6 +16,8 @@ import {
   Tag as TagIcon,
   GitMerge,
   Users,
+  Crown,
+  Search,
 } from "lucide-react";
 
 import { api, pickRepositoryDir, pickScanRoot } from "@/api";
@@ -31,7 +33,9 @@ const NAV_ITEMS = [
   { to: "/activity", icon: Activity, key: "nav.activity" },
   { to: "/branches", icon: GitMerge, key: "nav.branches" },
   { to: "/contributors", icon: Users, key: "nav.contributors" },
+  { to: "/ownership", icon: Crown, key: "nav.ownership" },
   { to: "/tags", icon: TagIcon, key: "nav.tags" },
+  { to: "/search", icon: Search, key: "nav.search" },
   { to: "/comparison", icon: GitCompare, key: "nav.comparison" },
   { to: "/settings", icon: Settings, key: "nav.settings" },
 ] as const;

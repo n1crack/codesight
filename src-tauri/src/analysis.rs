@@ -148,6 +148,48 @@ pub struct ContributorDetail {
     pub active_days: u32,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchParams {
+    pub query: Option<String>,
+    pub author_email: Option<String>,
+    pub since: Option<String>,
+    pub until: Option<String>,
+    pub path: Option<String>,
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorShare {
+    pub name: String,
+    pub email: String,
+    pub commits: u32,
+    pub additions: u32,
+    pub deletions: u32,
+    pub share_pct: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileOwnership {
+    pub path: String,
+    pub primary_name: String,
+    pub primary_email: String,
+    pub primary_share_pct: f32,
+    pub distinct_authors: u32,
+    pub total_commits: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnershipReport {
+    pub bus_factor: u32,
+    pub total_authors: u32,
+    pub top_authors: Vec<AuthorShare>,
+    pub files: Vec<FileOwnership>,
+}
+
 fn open(path: &str) -> AppResult<GitRepository> {
     GitRepository::open(path).map_err(|_| AppError::NotARepo(path.into()))
 }
@@ -1130,6 +1172,261 @@ pub fn get_contributor_recent_commits_impl(
         }
     }
     Ok(out)
+}
+
+fn parse_date(s: &str) -> Option<DateTime<Utc>> {
+    if let Ok(d) = DateTime::parse_from_rfc3339(s) {
+        return Some(d.with_timezone(&Utc));
+    }
+    if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        if let Some(dt) = d.and_hms_opt(0, 0, 0) {
+            return Utc.from_local_datetime(&dt).single();
+        }
+    }
+    None
+}
+
+pub fn search_commits_impl(
+    db: &crate::db::Db,
+    id: i64,
+    params: SearchParams,
+) -> AppResult<Vec<CommitInfo>> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = open(&repo_meta.path)?;
+
+    let limit = params.limit.unwrap_or(200).min(2000);
+    let q = params.query.as_ref().map(|s| s.to_lowercase());
+    let author = params.author_email.as_ref().map(|s| s.to_lowercase());
+    let since = params.since.as_deref().and_then(parse_date);
+    let until = params.until.as_deref().and_then(parse_date);
+    let path = params.path.as_ref().map(|s| s.to_lowercase());
+
+    let mut out = Vec::with_capacity(limit);
+    let mut seen: std::collections::HashSet<git2::Oid> = std::collections::HashSet::new();
+    let mut diff_opts = git2::DiffOptions::new();
+    diff_opts.ignore_filemode(true);
+
+    for oid in walk(&repo)? {
+        let oid = oid?;
+        if !seen.insert(oid) {
+            continue;
+        }
+        let commit = repo.find_commit(oid)?;
+        let ts = commit_time(&commit);
+
+        if let Some(s) = since {
+            if ts < s {
+                break;
+            }
+        }
+        if let Some(u) = until {
+            if ts > u {
+                continue;
+            }
+        }
+
+        if let Some(a) = &author {
+            let email = commit
+                .author()
+                .email()
+                .unwrap_or("")
+                .to_lowercase();
+            if !email.contains(a.as_str()) {
+                continue;
+            }
+        }
+
+        if let Some(needle) = &q {
+            let summary = commit.summary().unwrap_or("").to_lowercase();
+            if !summary.contains(needle.as_str()) {
+                continue;
+            }
+        }
+
+        if let Some(needle) = &path {
+            let new_tree = commit.tree()?;
+            let parent_tree = commit.parent(0).ok().and_then(|p| p.tree().ok());
+            let diff = repo.diff_tree_to_tree(
+                parent_tree.as_ref(),
+                Some(&new_tree),
+                Some(&mut diff_opts),
+            )?;
+            let mut hit = false;
+            for delta in diff.deltas() {
+                let p = delta
+                    .new_file()
+                    .path()
+                    .or_else(|| delta.old_file().path())
+                    .map(|p| p.display().to_string().to_lowercase())
+                    .unwrap_or_default();
+                if p.contains(needle.as_str()) {
+                    hit = true;
+                    break;
+                }
+            }
+            if !hit {
+                continue;
+            }
+        }
+
+        let id_str = oid.to_string();
+        let short_id = id_str.chars().take(7).collect();
+        out.push(CommitInfo {
+            id: id_str,
+            short_id,
+            author_name: commit.author().name().unwrap_or("unknown").to_string(),
+            author_email: commit.author().email().unwrap_or("").to_string(),
+            timestamp: ts.to_rfc3339(),
+            summary: commit.summary().unwrap_or("").to_string(),
+        });
+        if out.len() >= limit {
+            break;
+        }
+    }
+
+    Ok(out)
+}
+
+pub fn get_ownership_report_impl(
+    db: &crate::db::Db,
+    id: i64,
+) -> AppResult<OwnershipReport> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = open(&repo_meta.path)?;
+
+    struct AuthorAcc {
+        name: String,
+        commits: u32,
+        additions: u32,
+        deletions: u32,
+    }
+    let mut by_author: HashMap<String, AuthorAcc> = HashMap::new();
+
+    struct FileAcc {
+        commits: u32,
+        per_author: HashMap<String, (String, u32)>, // email -> (name, commits)
+    }
+    let mut by_file: HashMap<String, FileAcc> = HashMap::new();
+
+    walk_diffs(&repo, |commit, diff| {
+        let author_email = commit.author().email().unwrap_or("").to_lowercase();
+        let author_name = commit.author().name().unwrap_or("unknown").to_string();
+        let stats = diff.stats()?;
+
+        let aacc = by_author.entry(author_email.clone()).or_insert(AuthorAcc {
+            name: author_name.clone(),
+            commits: 0,
+            additions: 0,
+            deletions: 0,
+        });
+        aacc.commits = aacc.commits.saturating_add(1);
+        aacc.additions = aacc.additions.saturating_add(stats.insertions() as u32);
+        aacc.deletions = aacc.deletions.saturating_add(stats.deletions() as u32);
+
+        let delta_count = diff.deltas().len();
+        for idx in 0..delta_count {
+            let Some(delta) = diff.get_delta(idx) else {
+                continue;
+            };
+            let path = delta
+                .new_file()
+                .path()
+                .or_else(|| delta.old_file().path())
+                .map(|p| p.display().to_string())
+                .unwrap_or_default();
+            if path.is_empty() {
+                continue;
+            }
+            let facc = by_file.entry(path).or_insert(FileAcc {
+                commits: 0,
+                per_author: HashMap::new(),
+            });
+            facc.commits = facc.commits.saturating_add(1);
+            let (_, c) = facc
+                .per_author
+                .entry(author_email.clone())
+                .or_insert_with(|| (author_name.clone(), 0));
+            *c = c.saturating_add(1);
+        }
+        Ok(())
+    })?;
+
+    let total_changes: u64 = by_author
+        .values()
+        .map(|a| (a.additions as u64) + (a.deletions as u64))
+        .sum();
+
+    let mut shares: Vec<AuthorShare> = by_author
+        .iter()
+        .map(|(email, a)| {
+            let bytes = (a.additions as u64) + (a.deletions as u64);
+            let pct = if total_changes > 0 {
+                (bytes as f64 / total_changes as f64 * 100.0) as f32
+            } else {
+                0.0
+            };
+            AuthorShare {
+                name: a.name.clone(),
+                email: email.clone(),
+                commits: a.commits,
+                additions: a.additions,
+                deletions: a.deletions,
+                share_pct: pct,
+            }
+        })
+        .collect();
+    shares.sort_by(|a, b| b.share_pct.partial_cmp(&a.share_pct).unwrap_or(std::cmp::Ordering::Equal));
+
+    let mut bus_factor = 0u32;
+    let mut accum = 0.0f32;
+    for s in &shares {
+        if accum >= 50.0 {
+            break;
+        }
+        accum += s.share_pct;
+        bus_factor = bus_factor.saturating_add(1);
+    }
+    if bus_factor == 0 && !shares.is_empty() {
+        bus_factor = 1;
+    }
+
+    let total_authors = shares.len() as u32;
+    let top_authors: Vec<AuthorShare> = shares.iter().take(10).cloned().collect();
+
+    let mut files: Vec<FileOwnership> = by_file
+        .into_iter()
+        .map(|(path, fa)| {
+            let distinct = fa.per_author.len() as u32;
+            let primary = fa
+                .per_author
+                .iter()
+                .max_by_key(|(_, (_, c))| *c)
+                .map(|(email, (name, c))| (email.clone(), name.clone(), *c))
+                .unwrap_or_else(|| (String::new(), String::new(), 0));
+            let pct = if fa.commits > 0 {
+                (primary.2 as f32 / fa.commits as f32) * 100.0
+            } else {
+                0.0
+            };
+            FileOwnership {
+                path,
+                primary_name: primary.1,
+                primary_email: primary.0,
+                primary_share_pct: pct,
+                distinct_authors: distinct,
+                total_commits: fa.commits,
+            }
+        })
+        .collect();
+    files.sort_by(|a, b| b.total_commits.cmp(&a.total_commits));
+    files.truncate(40);
+
+    Ok(OwnershipReport {
+        bus_factor,
+        total_authors,
+        top_authors,
+        files,
+    })
 }
 
 fn classify_language(filename: &str) -> &'static str {

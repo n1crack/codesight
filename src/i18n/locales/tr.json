@@ -11,6 +11,8 @@
     "branches": "Dallar",
     "tags": "Sürümler",
     "contributors": "Katkıda Bulunanlar",
+    "ownership": "Sahiplik",
+    "search": "Arama",
     "comparison": "Karşılaştırma",
     "settings": "Ayarlar"
   },
@@ -126,6 +128,32 @@
     "topFiles": "En çok değiştirdiği dosyalar",
     "recentCommits": "Son commit'ler",
     "openProfile": "Profili aç"
+  },
+  "search": {
+    "title": "Commit arama",
+    "subtitle": "Mesaj, yazar, tarih veya dosya yoluyla filtrele",
+    "messagePlaceholder": "Commit mesajı ara…",
+    "authorPlaceholder": "yazar@example.com",
+    "pathPlaceholder": "yol/içeren",
+    "since": "Başlangıç",
+    "until": "Bitiş",
+    "submit": "Ara",
+    "results": "{{count}} sonuç",
+    "noResults": "Bu filtrelere uyan commit yok",
+    "clear": "Temizle"
+  },
+  "ownership": {
+    "title": "Kod sahipliği",
+    "subtitle": "Bus factor ve başlıca sahiplik",
+    "busFactor": "Bus factor",
+    "busFactorHint": "Değişikliklerin %50'sini taşıyan minimum yazar sayısı",
+    "totalAuthors": "Toplam yazar",
+    "topAuthors": "Pay'a göre öne çıkan yazarlar",
+    "fileOwnership": "Dosya sahipliği (en üst 40)",
+    "primaryAuthor": "Birincil",
+    "share": "pay",
+    "distinctAuthors": "yazar",
+    "commits": "commit"
   },
   "settings": {
     "title": "Ayarlar",
