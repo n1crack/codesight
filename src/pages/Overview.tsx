@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import {
   PieChart,
   Pie,
@@ -10,7 +11,10 @@ import {
 
 import { api } from "@/api";
 import { Card, CardContent, CardHeader, CardTitle, CardValue } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
+import { FileHotspotsCard } from "@/components/FileHotspotsCard";
+import { CommitMessageStatsCard } from "@/components/CommitMessageStatsCard";
 import { useAppState } from "@/state/AppState";
 import { formatDate } from "@/lib/format";
 
@@ -71,7 +75,11 @@ export function OverviewPage() {
               <CardTitle>{t("overview.totalCommits")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <CardValue>{summary.data?.total_commits ?? "—"}</CardValue>
+              {summary.isPending ? (
+                <Skeleton className="h-7 w-20" />
+              ) : (
+                <CardValue>{summary.data?.total_commits ?? "—"}</CardValue>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -79,7 +87,11 @@ export function OverviewPage() {
               <CardTitle>{t("overview.contributors")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <CardValue>{summary.data?.contributor_count ?? "—"}</CardValue>
+              {summary.isPending ? (
+                <Skeleton className="h-7 w-16" />
+              ) : (
+                <CardValue>{summary.data?.contributor_count ?? "—"}</CardValue>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -87,7 +99,11 @@ export function OverviewPage() {
               <CardTitle>{t("overview.branches")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <CardValue>{summary.data?.branch_count ?? "—"}</CardValue>
+              {summary.isPending ? (
+                <Skeleton className="h-7 w-12" />
+              ) : (
+                <CardValue>{summary.data?.branch_count ?? "—"}</CardValue>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -95,11 +111,15 @@ export function OverviewPage() {
               <CardTitle>{t("overview.lastCommit")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-sm">
-                {summary.data?.last_commit_at
-                  ? formatDate(summary.data.last_commit_at, i18n.language)
-                  : "—"}
-              </div>
+              {summary.isPending ? (
+                <Skeleton className="h-5 w-28" />
+              ) : (
+                <div className="text-sm">
+                  {summary.data?.last_commit_at
+                    ? formatDate(summary.data.last_commit_at, i18n.language)
+                    : "—"}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -110,22 +130,32 @@ export function OverviewPage() {
               <CardTitle>{t("overview.topContributors")}</CardTitle>
             </CardHeader>
             <CardContent>
-              {!contributors.data?.length ? (
+              {contributors.isPending ? (
+                <div className="flex flex-col gap-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-7 w-full" />
+                  ))}
+                </div>
+              ) : !contributors.data?.length ? (
                 <p className="text-sm text-muted-foreground">{t("common.noData")}</p>
               ) : (
-                <ul className="flex flex-col gap-2">
+                <ul className="flex flex-col gap-1">
                   {contributors.data.map((c) => (
-                    <li
-                      key={c.email}
-                      className="flex items-center justify-between gap-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium">{c.name}</div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {c.email}
+                    <li key={c.email}>
+                      <Link
+                        to={`/contributors/${encodeURIComponent(c.email)}`}
+                        className="flex items-center justify-between gap-2 rounded-md px-2 py-1 -mx-2 hover:bg-accent/40"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">
+                            {c.name}
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {c.email}
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-sm tabular-nums">{c.commits}</div>
+                        <div className="text-sm tabular-nums">{c.commits}</div>
+                      </Link>
                     </li>
                   ))}
                 </ul>
@@ -138,7 +168,16 @@ export function OverviewPage() {
               <CardTitle>{t("overview.languageBreakdown")}</CardTitle>
             </CardHeader>
             <CardContent>
-              {!langData.length ? (
+              {languages.isPending ? (
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-40 w-40 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton key={i} className="h-4 w-full" />
+                    ))}
+                  </div>
+                </div>
+              ) : !langData.length ? (
                 <p className="text-sm text-muted-foreground">{t("common.noData")}</p>
               ) : (
                 <div className="flex items-center gap-4">
@@ -199,12 +238,23 @@ export function OverviewPage() {
           </Card>
         </div>
 
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <FileHotspotsCard repoId={selectedRepoId} />
+          <CommitMessageStatsCard repoId={selectedRepoId} />
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>{t("overview.recentActivity")}</CardTitle>
           </CardHeader>
           <CardContent>
-            {!recent.data?.length ? (
+            {recent.isPending ? (
+              <div className="flex flex-col gap-1.5">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-5 w-full" />
+                ))}
+              </div>
+            ) : !recent.data?.length ? (
               <p className="text-sm text-muted-foreground">{t("common.noData")}</p>
             ) : (
               <ul className="flex flex-col gap-1.5">

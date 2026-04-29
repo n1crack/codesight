@@ -7,6 +7,10 @@
     "overview": "Genel Bakış",
     "heatmap": "Isı Haritası",
     "timeline": "Zaman Çizelgesi",
+    "activity": "Aktivite",
+    "branches": "Dallar",
+    "tags": "Sürümler",
+    "contributors": "Katkıda Bulunanlar",
     "comparison": "Karşılaştırma",
     "settings": "Ayarlar"
   },
@@ -35,7 +39,10 @@
     "lastCommit": "Son commit",
     "topContributors": "En çok katkıda bulunanlar",
     "languageBreakdown": "Diller",
-    "recentActivity": "Son etkinlik"
+    "recentActivity": "Son etkinlik",
+    "fileHotspots": "Sıcak dosyalar",
+    "fileHotspotsHint": "Geçmiş boyunca en çok değişen dosyalar",
+    "changes": "değişiklik"
   },
   "heatmap": {
     "title": "Katkı ısı haritası",
@@ -51,7 +58,11 @@
     "byWeek": "Haftalık",
     "byMonth": "Aylık",
     "byDay": "Günlük",
-    "commits": "Commit"
+    "commits": "Commit",
+    "churn": "Değişim",
+    "additions": "Eklenen",
+    "deletions": "Silinen",
+    "metric": "Metrik"
   },
   "comparison": {
     "title": "Depo karşılaştırması",
@@ -62,6 +73,59 @@
       "contributors": "Aktif katkıda bulunanlar",
       "churn": "Kod değişimi"
     }
+  },
+  "activity": {
+    "title": "Aktivite paterni",
+    "subtitle": "Bu ekip ne zaman commit atıyor?",
+    "hourOfDay": "Günün saati",
+    "dayOfWeek": "Haftanın günü",
+    "matrix": "Saat × hafta günü",
+    "totalCommits": "{{count}} commit analiz edildi",
+    "days": ["Pzt", "Sal", "Çar", "Per", "Cum", "Cts", "Paz"]
+  },
+  "messages": {
+    "title": "Commit mesajları",
+    "conventionalRatio": "Conventional commit oranı",
+    "avgLength": "Ort. başlık uzunluğu",
+    "chars": "karakter",
+    "noType": "Tipsiz",
+    "subtitle": "Başlık öneki dağılımı"
+  },
+  "tags": {
+    "title": "Sürümler / Etiketler",
+    "subtitle": "Etiketli ve hafif tag'ler",
+    "noTags": "Bu depoda henüz tag yok.",
+    "commitsSince": "Bir önceki tag'den bu yana {{count}} commit",
+    "noPrevious": "İlk sürüm"
+  },
+  "sparkline": {
+    "last30Days": "Son 30 gün: {{count}} commit",
+    "noActivity": "Son 30 günde commit yok"
+  },
+  "branches": {
+    "title": "Dallar",
+    "subtitle": "Yerel ve uzak referanslar",
+    "noBranches": "Henüz dal yok",
+    "head": "HEAD",
+    "remote": "uzak",
+    "local": "yerel",
+    "ahead": "ileri",
+    "behind": "geri",
+    "upToDate": "güncel",
+    "lastCommit": "Son commit"
+  },
+  "contributors": {
+    "title": "Katkıda Bulunanlar",
+    "subtitle": "Commit atan herkes",
+    "back": "Listeye dön",
+    "stats": "İstatistikler",
+    "activeDays": "Aktif gün",
+    "totalAdditions": "Eklenen satır",
+    "totalDeletions": "Silinen satır",
+    "personalHeatmap": "Kişisel ısı haritası",
+    "topFiles": "En çok değiştirdiği dosyalar",
+    "recentCommits": "Son commit'ler",
+    "openProfile": "Profili aç"
   },
   "settings": {
     "title": "Ayarlar",

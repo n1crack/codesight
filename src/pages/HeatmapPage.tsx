@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { api } from "@/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Heatmap } from "@/components/Heatmap";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { Select } from "@/components/ui/Select";
@@ -75,7 +76,11 @@ export function HeatmapPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {heatmap.data && <Heatmap data={heatmap.data} />}
+            {heatmap.isPending ? (
+              <Skeleton className="h-32 w-full" />
+            ) : heatmap.data ? (
+              <Heatmap data={heatmap.data} />
+            ) : null}
           </CardContent>
         </Card>
       </div>

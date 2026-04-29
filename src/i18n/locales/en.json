@@ -7,6 +7,10 @@
     "overview": "Overview",
     "heatmap": "Heatmap",
     "timeline": "Timeline",
+    "activity": "Activity",
+    "branches": "Branches",
+    "tags": "Releases",
+    "contributors": "Contributors",
     "comparison": "Comparison",
     "settings": "Settings"
   },
@@ -35,7 +39,10 @@
     "lastCommit": "Last commit",
     "topContributors": "Top contributors",
     "languageBreakdown": "Languages",
-    "recentActivity": "Recent activity"
+    "recentActivity": "Recent activity",
+    "fileHotspots": "File hotspots",
+    "fileHotspotsHint": "Most-changed files across history",
+    "changes": "changes"
   },
   "heatmap": {
     "title": "Contribution heatmap",
@@ -51,7 +58,11 @@
     "byWeek": "By week",
     "byMonth": "By month",
     "byDay": "By day",
-    "commits": "Commits"
+    "commits": "Commits",
+    "churn": "Churn",
+    "additions": "Additions",
+    "deletions": "Deletions",
+    "metric": "Metric"
   },
   "comparison": {
     "title": "Repo comparison",
@@ -62,6 +73,59 @@
       "contributors": "Active contributors",
       "churn": "Code churn"
     }
+  },
+  "activity": {
+    "title": "Activity patterns",
+    "subtitle": "When does this team commit?",
+    "hourOfDay": "Hour of day",
+    "dayOfWeek": "Day of week",
+    "matrix": "Hour × day-of-week",
+    "totalCommits": "{{count}} commits analyzed",
+    "days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  },
+  "messages": {
+    "title": "Commit messages",
+    "conventionalRatio": "Conventional commits",
+    "avgLength": "Avg subject length",
+    "chars": "chars",
+    "noType": "No type",
+    "subtitle": "Subject prefix breakdown"
+  },
+  "tags": {
+    "title": "Releases / Tags",
+    "subtitle": "Annotated and lightweight tags",
+    "noTags": "This repository has no tags yet.",
+    "commitsSince": "{{count}} commits since previous",
+    "noPrevious": "Initial release"
+  },
+  "sparkline": {
+    "last30Days": "{{count}} commits last 30 days",
+    "noActivity": "No commits in last 30 days"
+  },
+  "branches": {
+    "title": "Branches",
+    "subtitle": "Local and remote refs",
+    "noBranches": "No branches yet",
+    "head": "HEAD",
+    "remote": "remote",
+    "local": "local",
+    "ahead": "ahead",
+    "behind": "behind",
+    "upToDate": "up to date",
+    "lastCommit": "Last commit"
+  },
+  "contributors": {
+    "title": "Contributors",
+    "subtitle": "Everyone who has committed",
+    "back": "Back to contributors",
+    "stats": "Stats",
+    "activeDays": "Active days",
+    "totalAdditions": "Lines added",
+    "totalDeletions": "Lines removed",
+    "personalHeatmap": "Personal heatmap",
+    "topFiles": "Their top files",
+    "recentCommits": "Recent commits",
+    "openProfile": "View profile"
   },
   "settings": {
     "title": "Settings",

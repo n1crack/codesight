@@ -1,10 +1,26 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink } from "react-router-dom";
-import { Folder, FolderSearch, Plus, Trash2, GitBranch, BarChart3, Calendar, GitCompare, Settings } from "lucide-react";
+import {
+  Folder,
+  FolderSearch,
+  Plus,
+  Trash2,
+  GitBranch,
+  BarChart3,
+  Calendar,
+  GitCompare,
+  Settings,
+  Activity,
+  Tag as TagIcon,
+  GitMerge,
+  Users,
+} from "lucide-react";
 
 import { api, pickRepositoryDir, pickScanRoot } from "@/api";
 import { Button } from "@/components/ui/Button";
+import { Sparkline } from "@/components/Sparkline";
 import { useAppState } from "@/state/AppState";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +28,10 @@ const NAV_ITEMS = [
   { to: "/", icon: BarChart3, key: "nav.overview" },
   { to: "/heatmap", icon: GitBranch, key: "nav.heatmap" },
   { to: "/timeline", icon: Calendar, key: "nav.timeline" },
+  { to: "/activity", icon: Activity, key: "nav.activity" },
+  { to: "/branches", icon: GitMerge, key: "nav.branches" },
+  { to: "/contributors", icon: Users, key: "nav.contributors" },
+  { to: "/tags", icon: TagIcon, key: "nav.tags" },
   { to: "/comparison", icon: GitCompare, key: "nav.comparison" },
   { to: "/settings", icon: Settings, key: "nav.settings" },
 ] as const;
@@ -26,6 +46,17 @@ export function Sidebar() {
     queryFn: api.listRepositories,
   });
 
+  const sparklines = useQuery({
+    queryKey: ["sparklines", repos.data?.length ?? 0],
+    queryFn: () => api.getReposSparklines(30),
+    enabled: !!repos.data?.length,
+  });
+  const sparkByRepo = useMemo(() => {
+    const map = new Map<number, number[]>();
+    sparklines.data?.forEach((s) => map.set(s.repoId, s.days));
+    return map;
+  }, [sparklines.data]);
+
   const addOne = useMutation({
     mutationFn: async () => {
       const path = await pickRepositoryDir();
@@ -34,6 +65,7 @@ export function Sidebar() {
     },
     onSuccess: (repo) => {
       qc.invalidateQueries({ queryKey: ["repositories"] });
+      qc.invalidateQueries({ queryKey: ["sparklines"] });
       if (repo) setSelectedRepoId(repo.id);
     },
     onError: (err) => {
@@ -50,6 +82,7 @@ export function Sidebar() {
     },
     onSuccess: (added) => {
       qc.invalidateQueries({ queryKey: ["repositories"] });
+      qc.invalidateQueries({ queryKey: ["sparklines"] });
       if (added.length === 0) {
         alert(t("errors.noReposFound"));
       } else if (!selectedRepoId) {
@@ -66,6 +99,7 @@ export function Sidebar() {
     mutationFn: (id: number) => api.removeRepository(id),
     onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ["repositories"] });
+      qc.invalidateQueries({ queryKey: ["sparklines"] });
       if (selectedRepoId === id) setSelectedRepoId(null);
     },
   });
@@ -137,11 +171,16 @@ export function Sidebar() {
         )}
         {repos.data?.map((r) => {
           const isActive = r.id === selectedRepoId;
+          const days = sparkByRepo.get(r.id);
+          const total = days?.reduce((a, b) => a + b, 0) ?? 0;
+          const sparkTitle = total
+            ? t("sparkline.last30Days", { count: total })
+            : t("sparkline.noActivity");
           return (
             <div
               key={r.id}
               className={cn(
-                "group flex items-center gap-1 rounded-md px-2 py-1 text-sm",
+                "group flex items-center gap-1.5 rounded-md px-2 py-1 text-sm",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "hover:bg-sidebar-accent/50",
@@ -149,13 +188,22 @@ export function Sidebar() {
             >
               <button
                 type="button"
-                className="flex flex-1 items-center gap-2 truncate text-left"
+                className="flex min-w-0 flex-1 items-center gap-2 truncate text-left"
                 onClick={() => setSelectedRepoId(r.id)}
                 title={r.path}
               >
                 <Folder size={14} className="shrink-0 text-muted-foreground" />
                 <span className="truncate">{r.name}</span>
               </button>
+              {days && (
+                <Sparkline
+                  values={days}
+                  width={48}
+                  height={14}
+                  title={sparkTitle}
+                  className="opacity-70 group-hover:opacity-100"
+                />
+              )}
               <button
                 type="button"
                 aria-label={t("sidebar.remove")}

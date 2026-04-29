@@ -57,3 +57,70 @@ export interface CommitInfo {
 }
 
 export type TimelineGranularity = "day" | "week" | "month";
+
+export interface ChurnPoint {
+  bucket: string;
+  additions: number;
+  deletions: number;
+  commits: number;
+}
+
+export interface FileHotspot {
+  path: string;
+  commits: number;
+  additions: number;
+  deletions: number;
+  lastModified: string;
+}
+
+export type TimelineMetric = "commits" | "churn";
+
+export interface ActivityPatterns {
+  byHour: number[];
+  byDow: number[];
+  matrix: number[][];
+  total: number;
+}
+
+export interface CommitMessageStats {
+  total: number;
+  avgSubjectLength: number;
+  conventionalTotal: number;
+  noTypeCount: number;
+  types: Array<[string, number]>;
+}
+
+export interface TagInfo {
+  name: string;
+  targetOid: string;
+  taggerName: string | null;
+  timestamp: string | null;
+  message: string | null;
+  commitsSincePrevious: number | null;
+}
+
+export interface RepoSparkline {
+  repoId: number;
+  days: number[];
+  total: number;
+}
+
+export interface BranchInfo {
+  name: string;
+  isHead: boolean;
+  isRemote: boolean;
+  lastCommit: CommitInfo | null;
+  ahead: number;
+  behind: number;
+}
+
+export interface ContributorDetail {
+  name: string;
+  email: string;
+  totalCommits: number;
+  additions: number;
+  deletions: number;
+  firstCommitAt: string | null;
+  lastCommitAt: string | null;
+  activeDays: number;
+}
