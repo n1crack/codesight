@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { Tag } from "lucide-react";
 
 import { api } from "@/api";
@@ -84,9 +85,12 @@ export function TagsPage() {
                           </p>
                         )}
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          <code className="rounded bg-muted px-1 py-0.5 font-mono">
+                          <Link
+                            to={`/commits/${tag.targetOid}`}
+                            className="rounded bg-muted px-1 py-0.5 font-mono hover:bg-accent"
+                          >
                             {tag.targetOid.slice(0, 7)}
-                          </code>
+                          </Link>
                           <span>
                             {isLast
                               ? t("tags.noPrevious")

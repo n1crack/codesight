@@ -1,6 +1,8 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 import { AppShell } from "@/components/AppShell";
+import { HomePage } from "@/pages/HomePage";
+import { CommitDetailPage } from "@/pages/CommitDetailPage";
 import { OverviewPage } from "@/pages/Overview";
 import { HeatmapPage } from "@/pages/HeatmapPage";
 import { TimelinePage } from "@/pages/TimelinePage";
@@ -20,7 +22,9 @@ const router = createBrowserRouter([
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <OverviewPage /> },
+      { index: true, element: <HomePage /> },
+      { path: "overview", element: <OverviewPage /> },
+      { path: "commits/:oid", element: <CommitDetailPage /> },
       { path: "heatmap", element: <HeatmapPage /> },
       { path: "timeline", element: <TimelinePage /> },
       { path: "activity", element: <ActivityPage /> },

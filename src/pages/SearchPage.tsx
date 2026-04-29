@@ -138,26 +138,23 @@ export function SearchPage() {
               ) : (
                 <ul className="divide-y">
                   {results.map((c) => (
-                    <li
-                      key={c.id}
-                      className="flex items-start gap-3 p-3 text-sm"
-                    >
-                      <code className="mt-0.5 shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                        {c.shortId}
-                      </code>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate">{c.summary}</div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <Link
-                            to={`/contributors/${encodeURIComponent(c.authorEmail)}`}
-                            className="hover:underline"
-                          >
-                            {c.authorName}
-                          </Link>
-                          <span>·</span>
-                          <span>{formatDate(c.timestamp, i18n.language)}</span>
+                    <li key={c.id}>
+                      <Link
+                        to={`/commits/${c.id}`}
+                        className="flex items-start gap-3 p-3 text-sm hover:bg-accent/40"
+                      >
+                        <code className="mt-0.5 shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                          {c.shortId}
+                        </code>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate">{c.summary}</div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className="font-medium">{c.authorName}</span>
+                            <span>·</span>
+                            <span>{formatDate(c.timestamp, i18n.language)}</span>
+                          </div>
                         </div>
-                      </div>
+                      </Link>
                     </li>
                   ))}
                 </ul>

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Folder,
   FolderSearch,
@@ -19,6 +19,7 @@ import {
   Crown,
   Search,
   GitGraph,
+  Home,
 } from "lucide-react";
 
 import { api, pickRepositoryDir, pickScanRoot } from "@/api";
@@ -27,8 +28,14 @@ import { Sparkline } from "@/components/Sparkline";
 import { useAppState } from "@/state/AppState";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
-  { to: "/", icon: BarChart3, key: "nav.overview" },
+const GLOBAL_NAV = [
+  { to: "/", icon: Home, key: "nav.home" },
+  { to: "/comparison", icon: GitCompare, key: "nav.comparison" },
+  { to: "/settings", icon: Settings, key: "nav.settings" },
+] as const;
+
+const REPO_NAV = [
+  { to: "/overview", icon: BarChart3, key: "nav.overview" },
   { to: "/heatmap", icon: GitBranch, key: "nav.heatmap" },
   { to: "/timeline", icon: Calendar, key: "nav.timeline" },
   { to: "/activity", icon: Activity, key: "nav.activity" },
@@ -38,14 +45,23 @@ const NAV_ITEMS = [
   { to: "/tags", icon: TagIcon, key: "nav.tags" },
   { to: "/search", icon: Search, key: "nav.search" },
   { to: "/graph", icon: GitGraph, key: "nav.graph" },
-  { to: "/comparison", icon: GitCompare, key: "nav.comparison" },
-  { to: "/settings", icon: Settings, key: "nav.settings" },
 ] as const;
 
 export function Sidebar() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { selectedRepoId, setSelectedRepoId } = useAppState();
+
+  const onRepoClick = (id: number) => {
+    setSelectedRepoId(id);
+    const repoSection = REPO_NAV.some((n) => location.pathname.startsWith(n.to));
+    const onCommit = location.pathname.startsWith("/commits/");
+    if (!repoSection && !onCommit) {
+      navigate("/overview");
+    }
+  };
 
   const repos = useQuery({
     queryKey: ["repositories"],
@@ -122,8 +138,8 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex flex-col gap-0.5 px-2 pb-2">
-        {NAV_ITEMS.map(({ to, icon: Icon, key }) => (
+      <nav className="flex flex-col gap-0.5 px-2 pb-1">
+        {GLOBAL_NAV.map(({ to, icon: Icon, key }) => (
           <NavLink
             key={to}
             to={to}
@@ -142,6 +158,27 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      {selectedRepoId != null && (
+        <nav className="flex flex-col gap-0.5 border-t px-2 py-2">
+          {REPO_NAV.map(({ to, icon: Icon, key }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground",
+                )
+              }
+            >
+              <Icon size={14} />
+              {t(key)}
+            </NavLink>
+          ))}
+        </nav>
+      )}
 
       <div className="flex items-center justify-between px-3 pb-1 pt-3">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -195,7 +232,7 @@ export function Sidebar() {
               <button
                 type="button"
                 className="flex min-w-0 flex-1 items-center gap-2 truncate text-left"
-                onClick={() => setSelectedRepoId(r.id)}
+                onClick={() => onRepoClick(r.id)}
                 title={r.path}
               >
                 <Folder size={14} className="shrink-0 text-muted-foreground" />

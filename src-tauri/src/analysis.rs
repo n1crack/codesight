@@ -210,6 +210,75 @@ pub struct GraphRef {
     pub name: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiffLine {
+    pub origin: String,
+    pub old_lineno: Option<u32>,
+    pub new_lineno: Option<u32>,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Hunk {
+    pub old_start: u32,
+    pub old_lines: u32,
+    pub new_start: u32,
+    pub new_lines: u32,
+    pub header: String,
+    pub lines: Vec<DiffLine>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FilePatch {
+    pub old_path: Option<String>,
+    pub new_path: Option<String>,
+    pub status: String,
+    pub insertions: u32,
+    pub deletions: u32,
+    pub is_binary: bool,
+    pub hunks: Vec<Hunk>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitDetail {
+    pub id: String,
+    pub short_id: String,
+    pub parents: Vec<String>,
+    pub author_name: String,
+    pub author_email: String,
+    pub committer_name: String,
+    pub committer_email: String,
+    pub timestamp: String,
+    pub summary: String,
+    pub message: String,
+    pub files_changed: u32,
+    pub insertions: u32,
+    pub deletions: u32,
+    pub files: Vec<FilePatch>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GlobalRecentCommit {
+    pub commit: CommitInfo,
+    pub repo_id: i64,
+    pub repo_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GlobalSummary {
+    pub repo_count: u32,
+    pub total_commits: u32,
+    pub commits_last_30_days: u32,
+    pub active_repos_last_30_days: u32,
+    pub author_count: u32,
+}
+
 fn open(path: &str) -> AppResult<GitRepository> {
     GitRepository::open(path).map_err(|_| AppError::NotARepo(path.into()))
 }
@@ -1550,6 +1619,465 @@ pub fn get_commit_graph_impl(
         });
     }
 
+    Ok(out)
+}
+
+pub fn get_commit_detail_impl(
+    db: &crate::db::Db,
+    id: i64,
+    oid_hex: &str,
+) -> AppResult<CommitDetail> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = open(&repo_meta.path)?;
+
+    let oid = git2::Oid::from_str(oid_hex)
+        .map_err(|e| AppError::Other(format!("invalid oid: {}", e)))?;
+    let commit = repo.find_commit(oid)?;
+
+    let new_tree = commit.tree()?;
+    let parent_tree = commit.parent(0).ok().and_then(|p| p.tree().ok());
+    let mut diff_opts = git2::DiffOptions::new();
+    diff_opts.ignore_filemode(true);
+    let diff = repo.diff_tree_to_tree(
+        parent_tree.as_ref(),
+        Some(&new_tree),
+        Some(&mut diff_opts),
+    )?;
+    let stats = diff.stats()?;
+
+    let mut files: Vec<FilePatch> = Vec::new();
+    let delta_count = diff.deltas().len();
+    for idx in 0..delta_count {
+        let Some(delta) = diff.get_delta(idx) else {
+            continue;
+        };
+        let old_path = delta
+            .old_file()
+            .path()
+            .map(|p| p.display().to_string())
+            .filter(|s| !s.is_empty());
+        let new_path = delta
+            .new_file()
+            .path()
+            .map(|p| p.display().to_string())
+            .filter(|s| !s.is_empty());
+
+        let is_binary = delta
+            .flags()
+            .contains(git2::DiffFlags::BINARY);
+
+        let status = match delta.status() {
+            git2::Delta::Added => "added",
+            git2::Delta::Modified => "modified",
+            git2::Delta::Deleted => "deleted",
+            git2::Delta::Renamed => "renamed",
+            git2::Delta::Copied => "copied",
+            git2::Delta::Typechange => "typechange",
+            _ => "modified",
+        };
+
+        let mut insertions = 0u32;
+        let mut deletions = 0u32;
+        let mut hunks: Vec<Hunk> = Vec::new();
+
+        if !is_binary {
+            if let Ok(Some(patch)) = git2::Patch::from_diff(&diff, idx) {
+                if let Ok((_, ins, del)) = patch.line_stats() {
+                    insertions = ins as u32;
+                    deletions = del as u32;
+                }
+                let nh = patch.num_hunks();
+                for hi in 0..nh {
+                    let Ok((hunk, num_lines)) = patch.hunk(hi) else {
+                        continue;
+                    };
+                    let header = String::from_utf8_lossy(hunk.header())
+                        .trim_end()
+                        .to_string();
+                    let mut lines = Vec::with_capacity(num_lines);
+                    for li in 0..num_lines {
+                        let Ok(line) = patch.line_in_hunk(hi, li) else {
+                            continue;
+                        };
+                        let mut content = String::from_utf8_lossy(line.content())
+                            .to_string();
+                        if content.ends_with('\n') {
+                            content.pop();
+                        }
+                        if content.ends_with('\r') {
+                            content.pop();
+                        }
+                        lines.push(DiffLine {
+                            origin: line.origin().to_string(),
+                            old_lineno: line.old_lineno(),
+                            new_lineno: line.new_lineno(),
+                            content,
+                        });
+                    }
+                    hunks.push(Hunk {
+                        old_start: hunk.old_start(),
+                        old_lines: hunk.old_lines(),
+                        new_start: hunk.new_start(),
+                        new_lines: hunk.new_lines(),
+                        header,
+                        lines,
+                    });
+                }
+            }
+        }
+
+        files.push(FilePatch {
+            old_path,
+            new_path,
+            status: status.to_string(),
+            insertions,
+            deletions,
+            is_binary,
+            hunks,
+        });
+    }
+
+    let id_str = oid.to_string();
+    let short_id: String = id_str.chars().take(7).collect();
+    let parents: Vec<String> = commit.parent_ids().map(|p| p.to_string()).collect();
+    let author_name = commit.author().name().unwrap_or("unknown").to_string();
+    let author_email = commit.author().email().unwrap_or("").to_string();
+    let committer_name = commit.committer().name().unwrap_or("unknown").to_string();
+    let committer_email = commit.committer().email().unwrap_or("").to_string();
+    let timestamp = commit_time(&commit).to_rfc3339();
+    let summary = commit.summary().unwrap_or("").to_string();
+    let message = commit.message().unwrap_or("").to_string();
+
+    Ok(CommitDetail {
+        id: id_str,
+        short_id,
+        parents,
+        author_name,
+        author_email,
+        committer_name,
+        committer_email,
+        timestamp,
+        summary,
+        message,
+        files_changed: stats.files_changed() as u32,
+        insertions: stats.insertions() as u32,
+        deletions: stats.deletions() as u32,
+        files,
+    })
+}
+
+fn email_matches(commit: &git2::Commit<'_>, filter: &Option<String>) -> bool {
+    match filter {
+        None => true,
+        Some(e) => commit.author().email().unwrap_or("") == e.as_str(),
+    }
+}
+
+pub fn get_global_summary_impl(
+    db: &crate::db::Db,
+    email: Option<String>,
+) -> AppResult<GlobalSummary> {
+    let repos = crate::repo::list_repositories_impl(db)?;
+    let cutoff = Utc::now() - Duration::days(30);
+
+    struct Acc {
+        total: u32,
+        last_30: u32,
+        active: bool,
+        authors: std::collections::HashSet<String>,
+    }
+    let parts: Vec<Acc> = repos
+        .par_iter()
+        .map(|r| {
+            let mut acc = Acc {
+                total: 0,
+                last_30: 0,
+                active: false,
+                authors: std::collections::HashSet::new(),
+            };
+            let Ok(repo) = GitRepository::open(&r.path) else {
+                return acc;
+            };
+            let mut walk = match repo.revwalk() {
+                Ok(w) => w,
+                Err(_) => return acc,
+            };
+            let _ = walk.set_sorting(Sort::TIME);
+            let _ = walk.push_glob("refs/heads/*");
+            let mut seen = std::collections::HashSet::new();
+            for oid_res in walk {
+                let Ok(oid) = oid_res else { continue };
+                if !seen.insert(oid) {
+                    continue;
+                }
+                let Ok(commit) = repo.find_commit(oid) else {
+                    continue;
+                };
+                if !email_matches(&commit, &email) {
+                    continue;
+                }
+                let ts = commit_time(&commit);
+                acc.total = acc.total.saturating_add(1);
+                acc.authors
+                    .insert(commit.author().email().unwrap_or("").to_string());
+                if ts >= cutoff {
+                    acc.last_30 = acc.last_30.saturating_add(1);
+                    acc.active = true;
+                }
+            }
+            acc
+        })
+        .collect();
+
+    let mut total = 0u32;
+    let mut last_30 = 0u32;
+    let mut active = 0u32;
+    let mut authors = std::collections::HashSet::new();
+    for p in parts {
+        total = total.saturating_add(p.total);
+        last_30 = last_30.saturating_add(p.last_30);
+        if p.active {
+            active = active.saturating_add(1);
+        }
+        authors.extend(p.authors);
+    }
+
+    Ok(GlobalSummary {
+        repo_count: repos.len() as u32,
+        total_commits: total,
+        commits_last_30_days: last_30,
+        active_repos_last_30_days: active,
+        author_count: authors.len() as u32,
+    })
+}
+
+pub fn get_global_heatmap_impl(
+    db: &crate::db::Db,
+    year: i32,
+    email: Option<String>,
+) -> AppResult<HeatmapData> {
+    let repos = crate::repo::list_repositories_impl(db)?;
+
+    let counts: HashMap<NaiveDate, u32> = repos
+        .par_iter()
+        .map(|r| {
+            let mut local: HashMap<NaiveDate, u32> = HashMap::new();
+            let Ok(repo) = GitRepository::open(&r.path) else {
+                return local;
+            };
+            let Ok(mut walk) = repo.revwalk() else {
+                return local;
+            };
+            let _ = walk.set_sorting(Sort::TIME);
+            let _ = walk.push_glob("refs/heads/*");
+            let mut seen = std::collections::HashSet::new();
+            for oid_res in walk {
+                let Ok(oid) = oid_res else { continue };
+                if !seen.insert(oid) {
+                    continue;
+                }
+                let Ok(commit) = repo.find_commit(oid) else {
+                    continue;
+                };
+                if !email_matches(&commit, &email) {
+                    continue;
+                }
+                let ts = commit_time(&commit);
+                if ts.year() != year {
+                    continue;
+                }
+                *local.entry(ts.date_naive()).or_insert(0) += 1;
+            }
+            local
+        })
+        .reduce(HashMap::new, |mut acc, m| {
+            for (k, v) in m {
+                *acc.entry(k).or_insert(0) += v;
+            }
+            acc
+        });
+
+    let start = NaiveDate::from_ymd_opt(year, 1, 1)
+        .ok_or_else(|| AppError::Other("bad year".into()))?;
+    let end = NaiveDate::from_ymd_opt(year, 12, 31)
+        .ok_or_else(|| AppError::Other("bad year".into()))?;
+    let mut days: Vec<HeatmapDay> = Vec::with_capacity(366);
+    let mut total = 0u32;
+    let mut max_count = 0u32;
+    let mut d = start;
+    loop {
+        let c = counts.get(&d).copied().unwrap_or(0);
+        total += c;
+        if c > max_count {
+            max_count = c;
+        }
+        days.push(HeatmapDay {
+            date: d.format("%Y-%m-%d").to_string(),
+            count: c,
+        });
+        if d == end {
+            break;
+        }
+        d = match d.succ_opt() {
+            Some(next) => next,
+            None => break,
+        };
+    }
+
+    Ok(HeatmapData {
+        year,
+        days,
+        max_count,
+        total,
+    })
+}
+
+pub fn get_global_recent_commits_impl(
+    db: &crate::db::Db,
+    limit: usize,
+    email: Option<String>,
+) -> AppResult<Vec<GlobalRecentCommit>> {
+    let repos = crate::repo::list_repositories_impl(db)?;
+    let per_repo = limit.max(20);
+
+    let lists: Vec<Vec<GlobalRecentCommit>> = repos
+        .par_iter()
+        .map(|r| {
+            let mut out: Vec<GlobalRecentCommit> = Vec::new();
+            let Ok(repo) = GitRepository::open(&r.path) else {
+                return out;
+            };
+            let Ok(mut walk) = repo.revwalk() else {
+                return out;
+            };
+            let _ = walk.set_sorting(Sort::TIME);
+            let _ = walk.push_glob("refs/heads/*");
+            let mut seen = std::collections::HashSet::new();
+            for oid_res in walk {
+                if out.len() >= per_repo {
+                    break;
+                }
+                let Ok(oid) = oid_res else { continue };
+                if !seen.insert(oid) {
+                    continue;
+                }
+                let Ok(commit) = repo.find_commit(oid) else {
+                    continue;
+                };
+                if !email_matches(&commit, &email) {
+                    continue;
+                }
+                let ts = commit_time(&commit);
+                let id_str = oid.to_string();
+                let short_id: String = id_str.chars().take(7).collect();
+                out.push(GlobalRecentCommit {
+                    commit: CommitInfo {
+                        id: id_str,
+                        short_id,
+                        author_name: commit.author().name().unwrap_or("unknown").to_string(),
+                        author_email: commit.author().email().unwrap_or("").to_string(),
+                        timestamp: ts.to_rfc3339(),
+                        summary: commit.summary().unwrap_or("").to_string(),
+                    },
+                    repo_id: r.id,
+                    repo_name: r.name.clone(),
+                });
+            }
+            out
+        })
+        .collect();
+
+    let mut all: Vec<GlobalRecentCommit> = lists.into_iter().flatten().collect();
+    all.sort_by(|a, b| b.commit.timestamp.cmp(&a.commit.timestamp));
+    all.truncate(limit);
+    Ok(all)
+}
+
+pub fn list_known_authors_impl(db: &crate::db::Db) -> AppResult<Vec<Contributor>> {
+    let repos = crate::repo::list_repositories_impl(db)?;
+
+    struct Acc {
+        name: String,
+        commits: u32,
+        first: DateTime<Utc>,
+        last: DateTime<Utc>,
+    }
+
+    let parts: Vec<HashMap<String, Acc>> = repos
+        .par_iter()
+        .map(|r| {
+            let mut local: HashMap<String, Acc> = HashMap::new();
+            let Ok(repo) = GitRepository::open(&r.path) else {
+                return local;
+            };
+            let Ok(mut walk) = repo.revwalk() else {
+                return local;
+            };
+            let _ = walk.set_sorting(Sort::TIME);
+            let _ = walk.push_glob("refs/heads/*");
+            let mut seen = std::collections::HashSet::new();
+            for oid_res in walk {
+                let Ok(oid) = oid_res else { continue };
+                if !seen.insert(oid) {
+                    continue;
+                }
+                let Ok(commit) = repo.find_commit(oid) else {
+                    continue;
+                };
+                let email = commit.author().email().unwrap_or("").to_string();
+                let name = commit.author().name().unwrap_or("unknown").to_string();
+                let ts = commit_time(&commit);
+                local
+                    .entry(email)
+                    .and_modify(|a| {
+                        a.commits = a.commits.saturating_add(1);
+                        if ts < a.first {
+                            a.first = ts;
+                        }
+                        if ts > a.last {
+                            a.last = ts;
+                        }
+                    })
+                    .or_insert(Acc {
+                        name,
+                        commits: 1,
+                        first: ts,
+                        last: ts,
+                    });
+            }
+            local
+        })
+        .collect();
+
+    let mut merged: HashMap<String, Acc> = HashMap::new();
+    for part in parts {
+        for (email, a) in part {
+            merged
+                .entry(email)
+                .and_modify(|m| {
+                    m.commits = m.commits.saturating_add(a.commits);
+                    if a.first < m.first {
+                        m.first = a.first;
+                    }
+                    if a.last > m.last {
+                        m.last = a.last;
+                    }
+                })
+                .or_insert(a);
+        }
+    }
+
+    let mut out: Vec<Contributor> = merged
+        .into_iter()
+        .map(|(email, a)| Contributor {
+            name: a.name,
+            email,
+            commits: a.commits,
+            first_commit_at: a.first.to_rfc3339(),
+            last_commit_at: a.last.to_rfc3339(),
+        })
+        .collect();
+    out.sort_by(|a, b| b.commits.cmp(&a.commits));
     Ok(out)
 }
 

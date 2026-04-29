@@ -8,8 +8,11 @@ import type {
   CommitInfo,
   CommitMessageStats,
   Contributor,
+  CommitDetail,
   ContributorDetail,
   FileHotspot,
+  GlobalRecentCommit,
+  GlobalSummary,
   GraphCommit,
   HeatmapData,
   LanguageStat,
@@ -69,6 +72,18 @@ export const api = {
     invoke<OwnershipReport>("get_ownership_report", { id }),
   getCommitGraph: (id: number, limit: number) =>
     invoke<GraphCommit[]>("get_commit_graph", { id, limit }),
+  getCommitDetail: (id: number, oid: string) =>
+    invoke<CommitDetail>("get_commit_detail", { id, oid }),
+  getGlobalSummary: (email?: string | null) =>
+    invoke<GlobalSummary>("get_global_summary", { email: email ?? null }),
+  getGlobalHeatmap: (year: number, email?: string | null) =>
+    invoke<HeatmapData>("get_global_heatmap", { year, email: email ?? null }),
+  getGlobalRecentCommits: (limit: number, email?: string | null) =>
+    invoke<GlobalRecentCommit[]>("get_global_recent_commits", {
+      limit,
+      email: email ?? null,
+    }),
+  listKnownAuthors: () => invoke<Contributor[]>("list_known_authors"),
 };
 
 export async function pickRepositoryDir(): Promise<string | null> {

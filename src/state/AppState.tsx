@@ -7,12 +7,15 @@ type AppContextValue = {
   setSelectedRepoId: (id: number | null) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
+  myEmail: string | null;
+  setMyEmail: (email: string | null) => void;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 const THEME_KEY = "codesight.theme";
 const REPO_KEY = "codesight.selectedRepoId";
+const EMAIL_KEY = "codesight.myEmail";
 
 function readTheme(): Theme {
   const t = localStorage.getItem(THEME_KEY);
@@ -41,6 +44,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     readSelectedRepoId(),
   );
   const [theme, setThemeState] = useState<Theme>(() => readTheme());
+  const [myEmail, setMyEmailState] = useState<string | null>(
+    () => localStorage.getItem(EMAIL_KEY),
+  );
 
   useEffect(() => {
     applyTheme(theme);
@@ -61,9 +67,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     else localStorage.setItem(REPO_KEY, String(id));
   };
 
+  const setMyEmail = (email: string | null) => {
+    setMyEmailState(email);
+    if (!email) localStorage.removeItem(EMAIL_KEY);
+    else localStorage.setItem(EMAIL_KEY, email);
+  };
+
   const value = useMemo<AppContextValue>(
-    () => ({ selectedRepoId, setSelectedRepoId, theme, setTheme: setThemeState }),
-    [selectedRepoId, theme],
+    () => ({
+      selectedRepoId,
+      setSelectedRepoId,
+      theme,
+      setTheme: setThemeState,
+      myEmail,
+      setMyEmail,
+    }),
+    [selectedRepoId, theme, myEmail],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

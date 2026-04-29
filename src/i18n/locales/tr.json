@@ -4,6 +4,7 @@
     "tagline": "Yerel git analitiği"
   },
   "nav": {
+    "home": "Ana Sayfa",
     "overview": "Genel Bakış",
     "heatmap": "Isı Haritası",
     "timeline": "Zaman Çizelgesi",
@@ -161,6 +162,35 @@
     "subtitle": "Tüm dallar üzerinden commit DAG'ı (yerel)",
     "limit": "Göster",
     "noCommits": "Henüz commit yok"
+  },
+  "home": {
+    "title": "Ana Sayfa",
+    "subtitle": "Tüm depolar üzerinden",
+    "filterAll": "Tüm yazarlar",
+    "filterAuthor": "Yazar",
+    "totalRepos": "Depo",
+    "totalCommits": "Toplam commit",
+    "last30": "Son 30 gün",
+    "activeRepos": "Aktif depo (30g)",
+    "authors": "Yazar",
+    "globalHeatmap": "Birleşik ısı haritası",
+    "recentActivity": "Son etkinlik"
+  },
+  "commit": {
+    "title": "Commit",
+    "back": "Geri",
+    "filesChanged": "{{count}} dosya değişti",
+    "additionsLabel": "eklenen",
+    "deletionsLabel": "silinen",
+    "binaryFile": "İkili dosya (önizleme yok)",
+    "parents": "Ebeveynler",
+    "noParents": "İlk commit",
+    "viewParent": "Ebeveyni gör",
+    "fullMessage": "Mesaj",
+    "selectRepoFirst": "Bu commit'i yüklemek için önce bir depo seçin.",
+    "noFileChanges": "Bu commit'te dosya değişikliği yok (muhtemelen merge veya boş commit).",
+    "expandAll": "Tümünü aç",
+    "collapseAll": "Tümünü kapat"
   },
   "settings": {
     "title": "Ayarlar",

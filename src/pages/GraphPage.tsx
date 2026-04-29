@@ -156,12 +156,15 @@ export function GraphPage() {
                   {graph.data.map((c) => (
                     <li
                       key={c.id}
-                      className="flex items-center gap-2 border-b px-3"
+                      className="flex items-center gap-2 border-b px-3 hover:bg-accent/40"
                       style={{ height: ROW_HEIGHT }}
                     >
-                      <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                      <Link
+                        to={`/commits/${c.id}`}
+                        className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground hover:bg-accent"
+                      >
                         {c.shortId}
-                      </code>
+                      </Link>
                       {c.refs.map((r) => (
                         <span
                           key={`${r.kind}-${r.name}`}

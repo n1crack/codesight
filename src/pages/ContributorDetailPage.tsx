@@ -251,19 +251,21 @@ export function ContributorDetailPage() {
                   {t("common.noData")}
                 </p>
               ) : (
-                <ul className="flex flex-col gap-1.5">
+                <ul className="flex flex-col gap-1">
                   {recent.data.map((c) => (
-                    <li
-                      key={c.id}
-                      className="flex items-center justify-between gap-3 text-sm"
-                    >
-                      <code className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                        {c.shortId}
-                      </code>
-                      <span className="flex-1 truncate">{c.summary}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {formatDate(c.timestamp, i18n.language)}
-                      </span>
+                    <li key={c.id}>
+                      <Link
+                        to={`/commits/${c.id}`}
+                        className="flex items-center justify-between gap-3 rounded-md px-2 py-1 -mx-2 text-sm hover:bg-accent/40"
+                      >
+                        <code className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                          {c.shortId}
+                        </code>
+                        <span className="flex-1 truncate">{c.summary}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {formatDate(c.timestamp, i18n.language)}
+                        </span>
+                      </Link>
                     </li>
                   ))}
                 </ul>

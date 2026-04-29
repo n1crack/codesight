@@ -4,6 +4,7 @@
     "tagline": "Local-first git analytics"
   },
   "nav": {
+    "home": "Home",
     "overview": "Overview",
     "heatmap": "Heatmap",
     "timeline": "Timeline",
@@ -161,6 +162,35 @@
     "subtitle": "DAG of commits across all branches (local)",
     "limit": "Show",
     "noCommits": "No commits yet"
+  },
+  "home": {
+    "title": "Home",
+    "subtitle": "Across all repositories",
+    "filterAll": "All authors",
+    "filterAuthor": "Author",
+    "totalRepos": "Repositories",
+    "totalCommits": "Total commits",
+    "last30": "Commits last 30d",
+    "activeRepos": "Active repos (30d)",
+    "authors": "Authors",
+    "globalHeatmap": "Combined heatmap",
+    "recentActivity": "Recent activity"
+  },
+  "commit": {
+    "title": "Commit",
+    "back": "Back",
+    "filesChanged": "{{count}} files changed",
+    "additionsLabel": "additions",
+    "deletionsLabel": "deletions",
+    "binaryFile": "Binary file (no preview)",
+    "parents": "Parents",
+    "noParents": "Initial commit",
+    "viewParent": "View parent",
+    "fullMessage": "Message",
+    "selectRepoFirst": "Select a repository first to load this commit.",
+    "noFileChanges": "This commit has no file changes (likely a merge or empty commit).",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all"
   },
   "settings": {
     "title": "Settings",

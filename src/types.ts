@@ -174,3 +174,60 @@ export interface GraphCommit {
   summary: string;
   refs: GraphRef[];
 }
+
+export interface DiffLine {
+  origin: string;
+  oldLineno: number | null;
+  newLineno: number | null;
+  content: string;
+}
+
+export interface Hunk {
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  header: string;
+  lines: DiffLine[];
+}
+
+export interface FilePatch {
+  oldPath: string | null;
+  newPath: string | null;
+  status: string;
+  insertions: number;
+  deletions: number;
+  isBinary: boolean;
+  hunks: Hunk[];
+}
+
+export interface CommitDetail {
+  id: string;
+  shortId: string;
+  parents: string[];
+  authorName: string;
+  authorEmail: string;
+  committerName: string;
+  committerEmail: string;
+  timestamp: string;
+  summary: string;
+  message: string;
+  filesChanged: number;
+  insertions: number;
+  deletions: number;
+  files: FilePatch[];
+}
+
+export interface GlobalSummary {
+  repoCount: number;
+  totalCommits: number;
+  commitsLast30Days: number;
+  activeReposLast30Days: number;
+  authorCount: number;
+}
+
+export interface GlobalRecentCommit {
+  commit: CommitInfo;
+  repoId: number;
+  repoName: string;
+}

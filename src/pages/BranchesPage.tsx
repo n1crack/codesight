@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { GitBranch, ArrowUp, ArrowDown } from "lucide-react";
 
 import { api } from "@/api";
@@ -109,9 +110,12 @@ export function BranchesPage() {
                         </div>
                         {c && (
                           <div className="mt-1 flex items-center gap-2 text-sm">
-                            <code className="rounded bg-muted px-1 py-0.5 text-xs">
+                            <Link
+                              to={`/commits/${c.id}`}
+                              className="rounded bg-muted px-1 py-0.5 font-mono text-xs hover:bg-accent"
+                            >
                               {c.shortId}
-                            </code>
+                            </Link>
                             <span className="flex-1 truncate text-foreground/90">
                               {c.summary}
                             </span>
