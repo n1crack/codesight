@@ -13,6 +13,22 @@ export default defineConfig(async () => ({
     },
   },
   clearScreen: false,
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          recharts: ["recharts"],
+          i18n: [
+            "i18next",
+            "react-i18next",
+            "i18next-browser-languagedetector",
+          ],
+          react: ["react", "react-dom", "react-router-dom"],
+          tanstack: ["@tanstack/react-query"],
+        },
+      },
+    },
+  },
   server: {
     port: 1420,
     strictPort: true,

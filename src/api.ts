@@ -10,6 +10,8 @@ import type {
   Contributor,
   CommitDetail,
   ContributorDetail,
+  DirectoryHotspot,
+  FileCoupling,
   FileHotspot,
   GlobalRecentCommit,
   GlobalSummary,
@@ -84,6 +86,14 @@ export const api = {
       email: email ?? null,
     }),
   listKnownAuthors: () => invoke<Contributor[]>("list_known_authors"),
+  getFileCouplings: (id: number, limit: number) =>
+    invoke<FileCoupling[]>("get_file_couplings", { id, limit }),
+  getDirectoryHotspots: (id: number, maxDepth: number, limit: number) =>
+    invoke<DirectoryHotspot[]>("get_directory_hotspots", {
+      id,
+      maxDepth,
+      limit,
+    }),
 };
 
 export async function pickRepositoryDir(): Promise<string | null> {

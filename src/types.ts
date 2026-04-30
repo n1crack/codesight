@@ -231,3 +231,17 @@ export interface GlobalRecentCommit {
   repoId: number;
   repoName: string;
 }
+
+export interface FileCoupling {
+  fileA: string;
+  fileB: string;
+  jointChanges: number;
+}
+
+export interface DirectoryHotspot {
+  path: string;
+  commits: number;
+  additions: number;
+  deletions: number;
+  files: number;
+}

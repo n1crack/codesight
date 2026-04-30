@@ -279,6 +279,24 @@ pub struct GlobalSummary {
     pub author_count: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileCoupling {
+    pub file_a: String,
+    pub file_b: String,
+    pub joint_changes: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectoryHotspot {
+    pub path: String,
+    pub commits: u32,
+    pub additions: u32,
+    pub deletions: u32,
+    pub files: u32,
+}
+
 fn open(path: &str) -> AppResult<GitRepository> {
     GitRepository::open(path).map_err(|_| AppError::NotARepo(path.into()))
 }
@@ -2078,6 +2096,137 @@ pub fn list_known_authors_impl(db: &crate::db::Db) -> AppResult<Vec<Contributor>
         })
         .collect();
     out.sort_by(|a, b| b.commits.cmp(&a.commits));
+    Ok(out)
+}
+
+pub fn get_file_couplings_impl(
+    db: &crate::db::Db,
+    id: i64,
+    limit: usize,
+) -> AppResult<Vec<FileCoupling>> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = open(&repo_meta.path)?;
+
+    let mut counts: HashMap<(String, String), u32> = HashMap::new();
+
+    walk_diffs(&repo, |_commit, diff| {
+        let count = diff.deltas().len();
+        if count > 50 || count < 2 {
+            return Ok(());
+        }
+        let mut paths: Vec<String> = (0..count)
+            .filter_map(|idx| {
+                diff.get_delta(idx).and_then(|d| {
+                    d.new_file()
+                        .path()
+                        .or_else(|| d.old_file().path())
+                        .map(|p| p.display().to_string())
+                })
+            })
+            .filter(|p| !p.is_empty())
+            .collect();
+        paths.sort();
+        paths.dedup();
+        for i in 0..paths.len() {
+            for j in (i + 1)..paths.len() {
+                let key = (paths[i].clone(), paths[j].clone());
+                *counts.entry(key).or_insert(0) += 1;
+            }
+        }
+        Ok(())
+    })?;
+
+    let mut out: Vec<FileCoupling> = counts
+        .into_iter()
+        .filter(|(_, c)| *c >= 2)
+        .map(|((a, b), c)| FileCoupling {
+            file_a: a,
+            file_b: b,
+            joint_changes: c,
+        })
+        .collect();
+    out.sort_by(|x, y| y.joint_changes.cmp(&x.joint_changes));
+    out.truncate(limit);
+    Ok(out)
+}
+
+pub fn get_directory_hotspots_impl(
+    db: &crate::db::Db,
+    id: i64,
+    max_depth: usize,
+    limit: usize,
+) -> AppResult<Vec<DirectoryHotspot>> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = open(&repo_meta.path)?;
+
+    struct Acc {
+        commits: std::collections::HashSet<git2::Oid>,
+        additions: u32,
+        deletions: u32,
+        files: std::collections::HashSet<String>,
+    }
+    let mut by_dir: HashMap<String, Acc> = HashMap::new();
+    let depth = max_depth.max(1);
+
+    walk_diffs(&repo, |commit, diff| {
+        let oid = commit.id();
+        let count = diff.deltas().len();
+        for idx in 0..count {
+            let Some(delta) = diff.get_delta(idx) else {
+                continue;
+            };
+            let path = delta
+                .new_file()
+                .path()
+                .or_else(|| delta.old_file().path())
+                .map(|p| p.display().to_string())
+                .unwrap_or_default();
+            if path.is_empty() {
+                continue;
+            }
+
+            let parts: Vec<&str> = path.split('/').collect();
+            let dir = if parts.len() <= 1 {
+                ".".to_string()
+            } else {
+                let take = (parts.len() - 1).min(depth);
+                parts[..take].join("/")
+            };
+
+            let (additions, deletions) = match git2::Patch::from_diff(diff, idx) {
+                Ok(Some(patch)) => match patch.line_stats() {
+                    Ok((_, a, d)) => (a as u32, d as u32),
+                    Err(_) => (0, 0),
+                },
+                _ => (0, 0),
+            };
+
+            let acc = by_dir.entry(dir).or_insert(Acc {
+                commits: std::collections::HashSet::new(),
+                additions: 0,
+                deletions: 0,
+                files: std::collections::HashSet::new(),
+            });
+            acc.additions = acc.additions.saturating_add(additions);
+            acc.deletions = acc.deletions.saturating_add(deletions);
+            acc.files.insert(path);
+            acc.commits.insert(oid);
+        }
+        Ok(())
+    })?;
+
+    let mut out: Vec<DirectoryHotspot> = by_dir
+        .into_iter()
+        .map(|(path, acc)| DirectoryHotspot {
+            path,
+            commits: acc.commits.len() as u32,
+            additions: acc.additions,
+            deletions: acc.deletions,
+            files: acc.files.len() as u32,
+        })
+        .collect();
+    out.sort_by(|a, b| b.commits.cmp(&a.commits));
+    out.truncate(limit);
     Ok(out)
 }
 

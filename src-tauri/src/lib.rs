@@ -11,15 +11,16 @@ use crate::analysis::{
     get_activity_patterns_impl, get_code_churn_impl, get_commit_detail_impl,
     get_commit_graph_impl, get_commit_heatmap_impl, get_commit_message_stats_impl,
     get_commit_timeline_impl, get_contributor_detail_impl, get_contributor_heatmap_impl,
-    get_contributor_recent_commits_impl, get_contributor_top_files_impl, get_file_hotspots_impl,
+    get_contributor_recent_commits_impl, get_contributor_top_files_impl,
+    get_directory_hotspots_impl, get_file_couplings_impl, get_file_hotspots_impl,
     get_global_heatmap_impl, get_global_recent_commits_impl, get_global_summary_impl,
     get_language_breakdown_impl, get_ownership_report_impl, get_recent_commits_impl,
     get_repo_summary_impl, get_repos_sparklines_impl, get_top_contributors_impl,
     list_branches_impl, list_known_authors_impl, list_tags_impl, search_commits_impl,
     ActivityPatterns, BranchInfo, ChurnPoint, CommitDetail, CommitInfo, CommitMessageStats,
-    Contributor, ContributorDetail, FileHotspot, GlobalRecentCommit, GlobalSummary, GraphCommit,
-    HeatmapData, LanguageStat, OwnershipReport, RepoSparkline, RepoSummary, SearchParams, TagInfo,
-    TimelinePoint,
+    Contributor, ContributorDetail, DirectoryHotspot, FileCoupling, FileHotspot,
+    GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData, LanguageStat, OwnershipReport,
+    RepoSparkline, RepoSummary, SearchParams, TagInfo, TimelinePoint,
 };
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
@@ -361,6 +362,33 @@ async fn list_known_authors(
         .unwrap()
 }
 
+#[tauri::command]
+async fn get_file_couplings(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    limit: usize,
+) -> AppResult<Vec<FileCoupling>> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || get_file_couplings_impl(&db, id, limit))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn get_directory_hotspots(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    max_depth: usize,
+    limit: usize,
+) -> AppResult<Vec<DirectoryHotspot>> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        get_directory_hotspots_impl(&db, id, max_depth, limit)
+    })
+    .await
+    .unwrap()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -402,6 +430,8 @@ pub fn run() {
             get_global_heatmap,
             get_global_recent_commits,
             list_known_authors,
+            get_file_couplings,
+            get_directory_hotspots,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

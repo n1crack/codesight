@@ -21,6 +21,7 @@ import {
   Home,
   FolderGit2,
   Inbox,
+  Flame,
 } from "lucide-react";
 
 import { api, pickRepositoryDir, pickScanRoot } from "@/api";
@@ -43,6 +44,7 @@ const REPO_NAV = [
   { to: "/branches", icon: GitMerge, key: "nav.branches" },
   { to: "/contributors", icon: Users, key: "nav.contributors" },
   { to: "/ownership", icon: Crown, key: "nav.ownership" },
+  { to: "/hotspots", icon: Flame, key: "nav.hotspots" },
   { to: "/tags", icon: TagIcon, key: "nav.tags" },
   { to: "/search", icon: Search, key: "nav.search" },
   { to: "/graph", icon: GitGraph, key: "nav.graph" },

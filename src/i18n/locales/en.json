@@ -15,6 +15,7 @@
     "ownership": "Ownership",
     "search": "Search",
     "graph": "Graph",
+    "hotspots": "Hotspots",
     "comparison": "Comparison",
     "settings": "Settings"
   },
@@ -195,6 +196,33 @@
     "noFileChanges": "This commit has no file changes (likely a merge or empty commit).",
     "expandAll": "Expand all",
     "collapseAll": "Collapse all"
+  },
+  "hotspotsPage": {
+    "title": "Hotspots",
+    "subtitle": "Files, directories and couplings ranked by change frequency",
+    "tabFiles": "Files",
+    "tabDirectories": "Directories",
+    "tabCouplings": "Couplings",
+    "couplingHint": "Pairs of files that change together (≥ 2 joint commits)",
+    "directoryHint": "Aggregated by top-level directory",
+    "depth": "Depth",
+    "jointChanges": "joint changes"
+  },
+  "branchesFilter": {
+    "all": "All branches",
+    "stale30": "Stale > 30 days",
+    "stale60": "Stale > 60 days",
+    "stale90": "Stale > 90 days",
+    "stale180": "Stale > 180 days",
+    "staleBadge": "stale",
+    "daysAgo": "{{count}}d ago"
+  },
+  "command": {
+    "placeholder": "Type a command or search…",
+    "noResults": "No matches",
+    "page": "Page",
+    "repository": "Repository",
+    "openShortcut": "⌘K"
   },
   "settings": {
     "title": "Settings",

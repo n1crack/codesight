@@ -15,6 +15,7 @@
     "ownership": "Sahiplik",
     "search": "Arama",
     "graph": "Grafik",
+    "hotspots": "Sıcak Noktalar",
     "comparison": "Karşılaştırma",
     "settings": "Ayarlar"
   },
@@ -195,6 +196,33 @@
     "noFileChanges": "Bu commit'te dosya değişikliği yok (muhtemelen merge veya boş commit).",
     "expandAll": "Tümünü aç",
     "collapseAll": "Tümünü kapat"
+  },
+  "hotspotsPage": {
+    "title": "Sıcak Noktalar",
+    "subtitle": "Dosya, klasör ve birlikte değişen çiftler",
+    "tabFiles": "Dosyalar",
+    "tabDirectories": "Klasörler",
+    "tabCouplings": "Çiftler",
+    "couplingHint": "Birlikte değişen dosya çiftleri (≥ 2 ortak commit)",
+    "directoryHint": "Üst-seviye klasöre göre toplanmış",
+    "depth": "Derinlik",
+    "jointChanges": "ortak değişim"
+  },
+  "branchesFilter": {
+    "all": "Tüm dallar",
+    "stale30": "30+ gün sessiz",
+    "stale60": "60+ gün sessiz",
+    "stale90": "90+ gün sessiz",
+    "stale180": "180+ gün sessiz",
+    "staleBadge": "atıl",
+    "daysAgo": "{{count}}g önce"
+  },
+  "command": {
+    "placeholder": "Komut yaz veya ara…",
+    "noResults": "Eşleşme yok",
+    "page": "Sayfa",
+    "repository": "Depo",
+    "openShortcut": "⌘K"
   },
   "settings": {
     "title": "Ayarlar",
