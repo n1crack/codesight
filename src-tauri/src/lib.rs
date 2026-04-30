@@ -15,12 +15,12 @@ use crate::analysis::{
     get_directory_hotspots_impl, get_file_couplings_impl, get_file_hotspots_impl,
     get_global_heatmap_impl, get_global_recent_commits_impl, get_global_summary_impl,
     get_language_breakdown_impl, get_ownership_report_impl, get_recent_commits_impl,
-    get_repo_summary_impl, get_repos_sparklines_impl, get_top_contributors_impl,
-    list_branches_impl, list_known_authors_impl, list_tags_impl, search_commits_impl,
-    ActivityPatterns, BranchInfo, ChurnPoint, CommitDetail, CommitInfo, CommitMessageStats,
-    Contributor, ContributorDetail, DirectoryHotspot, FileCoupling, FileHotspot,
-    GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData, LanguageStat, OwnershipReport,
-    RepoSparkline, RepoSummary, SearchParams, TagInfo, TimelinePoint,
+    get_repo_health_impl, get_repo_summary_impl, get_repos_sparklines_impl,
+    get_top_contributors_impl, list_branches_impl, list_known_authors_impl, list_tags_impl,
+    search_commits_impl, ActivityPatterns, BranchInfo, ChurnPoint, CommitDetail, CommitInfo,
+    CommitMessageStats, Contributor, ContributorDetail, DirectoryHotspot, FileCoupling,
+    FileHotspot, GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData, LanguageStat,
+    OwnershipReport, RepoHealth, RepoSparkline, RepoSummary, SearchParams, TagInfo, TimelinePoint,
 };
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
@@ -389,6 +389,17 @@ async fn get_directory_hotspots(
     .unwrap()
 }
 
+#[tauri::command]
+async fn get_repo_health(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+) -> AppResult<RepoHealth> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || get_repo_health_impl(&db, id))
+        .await
+        .unwrap()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -432,6 +443,7 @@ pub fn run() {
             list_known_authors,
             get_file_couplings,
             get_directory_hotspots,
+            get_repo_health,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

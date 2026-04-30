@@ -23,6 +23,7 @@
     "insights": {
       "title": "Insights",
       "subtitle": "Heuristic-driven insights",
+      "health": "Health",
       "hotspots": "Hotspots",
       "ownership": "Ownership",
       "authors": "Authors",
@@ -45,7 +46,9 @@
     "remove": "Remove repository",
     "confirmRemove": "Remove \"{{name}}\" from codesight? Files on disk are not affected.",
     "filterPlaceholder": "Filter repos…",
-    "noMatch": "No repos match"
+    "noMatch": "No repos match",
+    "dragHint": "Drag to resize · double-click to reset",
+    "last30Suffix": "{{count}} / 30d"
   },
   "common": {
     "loading": "Loading…",
@@ -223,7 +226,9 @@
     "couplingHint": "Pairs of files that change together (≥ 2 joint commits)",
     "directoryHint": "Aggregated by top-level directory",
     "depth": "Depth",
-    "jointChanges": "joint changes"
+    "jointChanges": "joint changes",
+    "commitsCount": "{{count}} commits",
+    "filesCount": "{{count}} files"
   },
   "branchesFilter": {
     "all": "All branches",
@@ -232,14 +237,61 @@
     "stale90": "Stale > 90 days",
     "stale180": "Stale > 180 days",
     "staleBadge": "stale",
-    "daysAgo": "{{count}}d ago"
+    "daysAgo": "{{count}}d ago",
+    "riskLow": "low risk",
+    "riskMedium": "medium risk",
+    "riskHigh": "high risk",
+    "uniqueCommits": "{{count}} unique commits"
+  },
+  "health": {
+    "title": "Repo health",
+    "subtitle": "Composite score from six deterministic sub-scores",
+    "outOf": "out of {{max}}",
+    "labelExcellent": "Excellent",
+    "labelGood": "Good",
+    "labelFair": "Fair",
+    "labelPoor": "Poor",
+    "subRecency": "Recency",
+    "subVolume": "Activity volume",
+    "subBusFactor": "Bus factor",
+    "subBranches": "Branch hygiene",
+    "subDocs": "Docs & tests",
+    "subConventional": "Conventional commits",
+    "breakdownTitle": "Breakdown",
+    "hint": {
+      "recencyNone": "No commits found",
+      "recencyToday": "Last commit today",
+      "recencyDays": "Last commit {{days}} days ago",
+      "volume": "{{count}} commits in last 90 days",
+      "busFactor": "Bus factor = {{value}} — minimum authors covering 50% of code changes",
+      "branchesClean": "All {{local}} local branches are active",
+      "branchesStale": "{{stale}} of {{local}} local branches are stale (no commit > 90d, not HEAD)",
+      "branchesEmpty": "No local branches",
+      "docsAll": "README, docs/, tests — all present",
+      "docsPartial": "{{readme}} · {{docs}} · {{tests}}",
+      "docsReadmePresent": "README ✓",
+      "docsReadmeMissing": "no README",
+      "docsDirPresent": "docs/ ✓",
+      "docsDirMissing": "no docs/",
+      "docsTestsPresent": "tests ✓",
+      "docsTestsMissing": "no tests",
+      "conventionalNotEnough": "Not enough commits to evaluate",
+      "conventionalPct": "{{pct}}% of commits follow Conventional Commits"
+    }
   },
   "command": {
     "placeholder": "Type a command or search…",
     "noResults": "No matches",
     "page": "Page",
     "repository": "Repository",
-    "openShortcut": "⌘K"
+    "openShortcut": "⌘K",
+    "esc": "esc",
+    "hintNavigate": "↑↓ navigate",
+    "hintSelect": "↵ select"
+  },
+  "topbar": {
+    "refresh": "Refresh",
+    "refreshTitle": "Refresh data"
   },
   "settings": {
     "title": "Settings",

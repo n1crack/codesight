@@ -48,6 +48,7 @@ const SUB_PAGES: Array<{
   { to: "/activity/heatmap", parentKey: "nav.activity", childKey: "section.activity.heatmap", icon: Activity },
   { to: "/activity/timeline", parentKey: "nav.activity", childKey: "section.activity.timeline", icon: Activity },
   { to: "/activity/patterns", parentKey: "nav.activity", childKey: "section.activity.patterns", icon: Activity },
+  { to: "/insights/health", parentKey: "nav.insights", childKey: "section.insights.health", icon: Brain },
   { to: "/insights/hotspots", parentKey: "nav.insights", childKey: "section.insights.hotspots", icon: Brain },
   { to: "/insights/ownership", parentKey: "nav.insights", childKey: "section.insights.ownership", icon: Brain },
   { to: "/insights/authors", parentKey: "nav.insights", childKey: "section.insights.authors", icon: Brain },
@@ -195,7 +196,7 @@ export function CommandPalette() {
             className="h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
           <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            esc
+            {t("command.esc")}
           </kbd>
         </div>
         <ul ref={listRef} className="max-h-80 overflow-y-auto py-1">
@@ -231,8 +232,8 @@ export function CommandPalette() {
           )}
         </ul>
         <div className="flex items-center justify-end gap-3 border-t px-3 py-1.5 text-[10px] text-muted-foreground">
-          <span>↑↓ navigate</span>
-          <span>↵ select</span>
+          <span>{t("command.hintNavigate")}</span>
+          <span>{t("command.hintSelect")}</span>
         </div>
       </div>
     </div>

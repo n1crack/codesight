@@ -249,7 +249,7 @@ export function Sidebar() {
         onPointerDown={startResize}
         onDoubleClick={resetTopPane}
         className="group relative h-2 shrink-0 cursor-row-resize select-none bg-sidebar"
-        title="Drag to resize · double-click to reset"
+        title={t("sidebar.dragHint")}
       >
         <span
           aria-hidden
@@ -428,7 +428,9 @@ export function Sidebar() {
                           )}
                         />
                         <span className="text-[10px] tabular-nums text-muted-foreground">
-                          {total ? `${total} / 30d` : "—"}
+                          {total
+                            ? t("sidebar.last30Suffix", { count: total })
+                            : "—"}
                         </span>
                       </div>
                     )}

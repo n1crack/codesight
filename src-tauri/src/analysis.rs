@@ -133,6 +133,8 @@ pub struct BranchInfo {
     pub last_commit: Option<CommitInfo>,
     pub ahead: u32,
     pub behind: u32,
+    pub unique_commits: u32,
+    pub risk: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -295,6 +297,44 @@ pub struct DirectoryHotspot {
     pub additions: u32,
     pub deletions: u32,
     pub files: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum HealthDetail {
+    #[serde(rename_all = "camelCase")]
+    Recency { days_since_last: Option<i64> },
+    #[serde(rename_all = "camelCase")]
+    Volume { commits_in_last90: u32 },
+    #[serde(rename_all = "camelCase")]
+    BusFactor { value: u32 },
+    #[serde(rename_all = "camelCase")]
+    Branches { stale: u32, local: u32 },
+    #[serde(rename_all = "camelCase")]
+    Docs {
+        has_readme: bool,
+        has_docs_dir: bool,
+        has_tests: bool,
+    },
+    #[serde(rename_all = "camelCase")]
+    Conventional { pct: f32, subjects: u32 },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthSubScore {
+    pub key: String,
+    pub score: u32,
+    pub max: u32,
+    pub detail: HealthDetail,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoHealth {
+    pub score: u32,
+    pub max: u32,
+    pub sub_scores: Vec<HealthSubScore>,
 }
 
 fn open(path: &str) -> AppResult<GitRepository> {
@@ -1001,7 +1041,8 @@ pub fn list_branches_impl(db: &crate::db::Db, id: i64) -> AppResult<Vec<BranchIn
 
     let head_oid = repo.head().ok().and_then(|h| h.target());
 
-    let mut out: Vec<BranchInfo> = Vec::new();
+    // Collect all branch tip oids (local + remote) with names for unique-commit calculation
+    let mut all_tips: Vec<(String, git2::Oid, bool, bool)> = Vec::new();
     for branch_result in repo.branches(None)? {
         let (branch, btype) = match branch_result {
             Ok(v) => v,
@@ -1013,11 +1054,18 @@ pub fn list_branches_impl(db: &crate::db::Db, id: i64) -> AppResult<Vec<BranchIn
         };
         let is_remote = matches!(btype, git2::BranchType::Remote);
         let is_head = branch.is_head();
+        if let Ok(commit) = branch.get().peel_to_commit() {
+            all_tips.push((name, commit.id(), is_remote, is_head));
+        }
+    }
 
-        let commit = branch.get().peel_to_commit().ok();
-        let last_commit = commit.as_ref().map(|c| {
-            let oid = c.id();
-            let oid_str = oid.to_string();
+    let now = Utc::now();
+    let mut out: Vec<BranchInfo> = Vec::with_capacity(all_tips.len());
+
+    for (name, tip_oid, is_remote, is_head) in &all_tips {
+        let commit_obj = repo.find_commit(*tip_oid).ok();
+        let last_commit = commit_obj.as_ref().map(|c| {
+            let oid_str = c.id().to_string();
             CommitInfo {
                 id: oid_str.clone(),
                 short_id: oid_str.chars().take(7).collect(),
@@ -1028,21 +1076,60 @@ pub fn list_branches_impl(db: &crate::db::Db, id: i64) -> AppResult<Vec<BranchIn
             }
         });
 
-        let (ahead, behind) = match (commit.as_ref(), head_oid) {
-            (Some(c), Some(h)) if c.id() != h => repo
-                .graph_ahead_behind(c.id(), h)
+        let (ahead, behind) = match head_oid {
+            Some(h) if *tip_oid != h => repo
+                .graph_ahead_behind(*tip_oid, h)
                 .map(|(a, b)| (a as u32, b as u32))
                 .unwrap_or((0, 0)),
             _ => (0, 0),
         };
 
+        // unique commits: reachable from this tip but no other tip
+        let unique_commits = if let Ok(mut walk) = repo.revwalk() {
+            let _ = walk.push(*tip_oid);
+            for (_, other_oid, _, _) in &all_tips {
+                if other_oid != tip_oid {
+                    let _ = walk.hide(*other_oid);
+                }
+            }
+            walk.flatten().count() as u32
+        } else {
+            0
+        };
+
+        // risk computation
+        let stale = commit_obj
+            .as_ref()
+            .map(|c| {
+                let bts = Utc
+                    .timestamp_opt(c.time().seconds(), 0)
+                    .single()
+                    .unwrap_or_else(Utc::now);
+                bts < (now - Duration::days(90))
+            })
+            .unwrap_or(false);
+
+        let risk = if *is_head {
+            "none"
+        } else if stale && unique_commits >= 50 {
+            "high"
+        } else if stale && unique_commits >= 6 {
+            "medium"
+        } else if stale && unique_commits >= 1 {
+            "low"
+        } else {
+            "none"
+        };
+
         out.push(BranchInfo {
-            name,
-            is_head,
-            is_remote,
+            name: name.clone(),
+            is_head: *is_head,
+            is_remote: *is_remote,
             last_commit,
             ahead,
             behind,
+            unique_commits,
+            risk: risk.into(),
         });
     }
 
@@ -2228,6 +2315,273 @@ pub fn get_directory_hotspots_impl(
     out.sort_by(|a, b| b.commits.cmp(&a.commits));
     out.truncate(limit);
     Ok(out)
+}
+
+pub fn get_repo_health_impl(
+    db: &crate::db::Db,
+    id: i64,
+) -> AppResult<RepoHealth> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = open(&repo_meta.path)?;
+
+    let now = Utc::now();
+    let cutoff_7 = now - Duration::days(7);
+    let cutoff_30 = now - Duration::days(30);
+    let cutoff_90 = now - Duration::days(90);
+
+    let mut last_commit_at: Option<DateTime<Utc>> = None;
+    let mut total_commits: u32 = 0;
+    let mut commits_90d: u32 = 0;
+    let mut conventional_commits: u32 = 0;
+    let mut subjects_total: u32 = 0;
+    let mut authors_changes: HashMap<String, u64> = HashMap::new();
+    let mut total_changes: u64 = 0;
+
+    let mut seen: std::collections::HashSet<git2::Oid> = std::collections::HashSet::new();
+    for oid in walk(&repo)? {
+        let oid = oid?;
+        if !seen.insert(oid) {
+            continue;
+        }
+        let commit = repo.find_commit(oid)?;
+        let ts = commit_time(&commit);
+        total_commits = total_commits.saturating_add(1);
+        last_commit_at = Some(last_commit_at.map_or(ts, |l| l.max(ts)));
+        if ts >= cutoff_90 {
+            commits_90d = commits_90d.saturating_add(1);
+        }
+        if let Some(s) = commit.summary() {
+            subjects_total = subjects_total.saturating_add(1);
+            if classify_subject(s).is_some() {
+                conventional_commits = conventional_commits.saturating_add(1);
+            }
+        }
+    }
+
+    walk_diffs(&repo, |commit, diff| {
+        let stats = diff.stats()?;
+        let bytes = (stats.insertions() as u64) + (stats.deletions() as u64);
+        if bytes == 0 {
+            return Ok(());
+        }
+        let email = commit.author().email().unwrap_or("").to_lowercase();
+        *authors_changes.entry(email).or_insert(0) += bytes;
+        total_changes += bytes;
+        Ok(())
+    })?;
+
+    let mut author_shares: Vec<f64> = if total_changes > 0 {
+        authors_changes
+            .values()
+            .map(|v| (*v as f64 / total_changes as f64) * 100.0)
+            .collect()
+    } else {
+        Vec::new()
+    };
+    author_shares.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+
+    let mut bus_factor = 0u32;
+    let mut acc = 0.0f64;
+    for s in &author_shares {
+        if acc >= 50.0 {
+            break;
+        }
+        acc += s;
+        bus_factor = bus_factor.saturating_add(1);
+    }
+    if bus_factor == 0 && !author_shares.is_empty() {
+        bus_factor = 1;
+    }
+
+    let mut local_count: u32 = 0;
+    let mut stale_count: u32 = 0;
+    let head_oid = repo.head().ok().and_then(|h| h.target());
+    if let Ok(branches) = repo.branches(Some(git2::BranchType::Local)) {
+        for b in branches.flatten() {
+            let (branch, _) = b;
+            let is_head = branch.is_head();
+            if let Ok(commit) = branch.get().peel_to_commit() {
+                local_count = local_count.saturating_add(1);
+                let bts = Utc
+                    .timestamp_opt(commit.time().seconds(), 0)
+                    .single()
+                    .unwrap_or_else(Utc::now);
+                let stale = bts < (now - Duration::days(90));
+                let is_default = head_oid.map(|h| h == commit.id()).unwrap_or(false);
+                if stale && !is_head && !is_default {
+                    stale_count = stale_count.saturating_add(1);
+                }
+            }
+        }
+    }
+
+    let mut has_readme = false;
+    let mut has_docs_dir = false;
+    let mut has_tests = false;
+    if let Ok(head_ref) = repo.head() {
+        if let Ok(tree) = head_ref.peel_to_tree() {
+            tree.walk(git2::TreeWalkMode::PreOrder, |root, entry| {
+                if let Some(name) = entry.name() {
+                    let lower = name.to_ascii_lowercase();
+                    let path = format!("{}{}", root, name);
+                    let path_lower = path.to_ascii_lowercase();
+                    if entry.kind() == Some(git2::ObjectType::Blob) {
+                        if root.is_empty() && lower.starts_with("readme") {
+                            has_readme = true;
+                        }
+                        if path_lower.contains("test") || path_lower.contains("spec") {
+                            has_tests = true;
+                        }
+                    } else if entry.kind() == Some(git2::ObjectType::Tree) {
+                        if root.is_empty()
+                            && (lower == "docs" || lower == "doc" || lower == "documentation")
+                        {
+                            has_docs_dir = true;
+                        }
+                        if lower == "test" || lower == "tests" || lower == "__tests__" {
+                            has_tests = true;
+                        }
+                    }
+                }
+                if has_readme && (has_docs_dir || has_tests) && has_tests {
+                    git2::TreeWalkResult::Abort
+                } else {
+                    git2::TreeWalkResult::Ok
+                }
+            })
+            .ok();
+        }
+    }
+
+    // 1) Recency — 20p
+    let recency_score = if let Some(last) = last_commit_at {
+        if last >= cutoff_7 {
+            20
+        } else if last >= cutoff_30 {
+            14
+        } else if last >= cutoff_90 {
+            8
+        } else {
+            0
+        }
+    } else {
+        0
+    };
+    let days_since_last = last_commit_at.map(|d| (now - d).num_days());
+
+    // 2) Activity volume — 15p
+    let volume_score = if total_commits == 0 {
+        0u32
+    } else {
+        match commits_90d {
+            x if x >= 60 => 15,
+            x if x >= 25 => 12,
+            x if x >= 10 => 9,
+            x if x >= 3 => 5,
+            x if x >= 1 => 2,
+            _ => 0,
+        }
+    };
+
+    // 3) Bus factor — 20p
+    let bus_score = match bus_factor {
+        0 => 0,
+        1 => 4,
+        2 => 12,
+        _ => 20,
+    };
+
+    // 4) Branch hygiene — 15p
+    let branch_score = if local_count == 0 {
+        15
+    } else {
+        let stale_ratio = stale_count as f64 / local_count as f64;
+        let penalty = (stale_ratio * 15.0).round() as u32;
+        15u32.saturating_sub(penalty)
+    };
+
+    // 5) Doc / test presence — 15p
+    let mut docs_score = 0u32;
+    if has_readme {
+        docs_score += 5;
+    }
+    if has_docs_dir {
+        docs_score += 4;
+    }
+    if has_tests {
+        docs_score += 6;
+    }
+
+    // 6) Conventional commits — 15p
+    let conv_pct = if subjects_total > 0 {
+        (conventional_commits as f64 / subjects_total as f64) * 100.0
+    } else {
+        0.0
+    };
+    let conv_score = if subjects_total < 10 {
+        7 // not enough data → neutral half-score
+    } else {
+        ((conv_pct / 100.0) * 15.0).round() as u32
+    };
+
+    let sub_scores = vec![
+        HealthSubScore {
+            key: "recency".into(),
+            score: recency_score,
+            max: 20,
+            detail: HealthDetail::Recency { days_since_last },
+        },
+        HealthSubScore {
+            key: "volume".into(),
+            score: volume_score,
+            max: 15,
+            detail: HealthDetail::Volume {
+                commits_in_last90: commits_90d,
+            },
+        },
+        HealthSubScore {
+            key: "busFactor".into(),
+            score: bus_score,
+            max: 20,
+            detail: HealthDetail::BusFactor { value: bus_factor },
+        },
+        HealthSubScore {
+            key: "branches".into(),
+            score: branch_score,
+            max: 15,
+            detail: HealthDetail::Branches {
+                stale: stale_count,
+                local: local_count,
+            },
+        },
+        HealthSubScore {
+            key: "docs".into(),
+            score: docs_score,
+            max: 15,
+            detail: HealthDetail::Docs {
+                has_readme,
+                has_docs_dir,
+                has_tests,
+            },
+        },
+        HealthSubScore {
+            key: "conventional".into(),
+            score: conv_score,
+            max: 15,
+            detail: HealthDetail::Conventional {
+                pct: conv_pct as f32,
+                subjects: subjects_total,
+            },
+        },
+    ];
+    let total_score: u32 = sub_scores.iter().map(|s| s.score).sum();
+    let max_score: u32 = sub_scores.iter().map(|s| s.max).sum();
+
+    Ok(RepoHealth {
+        score: total_score,
+        max: max_score,
+        sub_scores,
+    })
 }
 
 fn classify_language(filename: &str) -> &'static str {

@@ -46,8 +46,8 @@ export function AppTopBar() {
       <button
         type="button"
         onClick={refresh}
-        aria-label="Refresh"
-        title="Refresh data"
+        aria-label={t("topbar.refresh")}
+        title={t("topbar.refreshTitle")}
         className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
       >
         <RotateCw

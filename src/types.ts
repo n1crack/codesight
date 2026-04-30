@@ -105,6 +105,8 @@ export interface RepoSparkline {
   total: number;
 }
 
+export type BranchRisk = "none" | "low" | "medium" | "high";
+
 export interface BranchInfo {
   name: string;
   isHead: boolean;
@@ -112,6 +114,8 @@ export interface BranchInfo {
   lastCommit: CommitInfo | null;
   ahead: number;
   behind: number;
+  uniqueCommits: number;
+  risk: BranchRisk;
 }
 
 export interface ContributorDetail {
@@ -244,4 +248,30 @@ export interface DirectoryHotspot {
   additions: number;
   deletions: number;
   files: number;
+}
+
+export type HealthDetail =
+  | { kind: "recency"; daysSinceLast: number | null }
+  | { kind: "volume"; commitsInLast90: number }
+  | { kind: "busFactor"; value: number }
+  | { kind: "branches"; stale: number; local: number }
+  | {
+      kind: "docs";
+      hasReadme: boolean;
+      hasDocsDir: boolean;
+      hasTests: boolean;
+    }
+  | { kind: "conventional"; pct: number; subjects: number };
+
+export interface HealthSubScore {
+  key: string;
+  score: number;
+  max: number;
+  detail: HealthDetail;
+}
+
+export interface RepoHealth {
+  score: number;
+  max: number;
+  subScores: HealthSubScore[];
 }

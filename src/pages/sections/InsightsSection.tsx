@@ -9,6 +9,7 @@ export function InsightsSection() {
       title={t("section.insights.title")}
       subtitle={t("section.insights.subtitle")}
       tabs={[
+        { to: "health", label: t("section.insights.health") },
         { to: "hotspots", label: t("section.insights.hotspots") },
         { to: "ownership", label: t("section.insights.ownership") },
         { to: "authors", label: t("section.insights.authors") },

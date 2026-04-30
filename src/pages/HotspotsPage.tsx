@@ -91,7 +91,7 @@ function FilesTab({ repoId }: { repoId: number }) {
                   </div>
                   <div className="flex w-32 shrink-0 flex-col items-end gap-1">
                     <span className="text-xs tabular-nums">
-                      {h.commits} commits
+                      {t("hotspotsPage.commitsCount", { count: h.commits })}
                     </span>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                       <div
@@ -159,14 +159,14 @@ function DirectoriesTab({ repoId }: { repoId: number }) {
                       {h.path}
                     </div>
                     <div className="mt-1 flex gap-3 text-[11px] text-muted-foreground">
-                      <span>{h.files} files</span>
+                      <span>{t("hotspotsPage.filesCount", { count: h.files })}</span>
                       <span className="text-emerald-500">+{h.additions}</span>
                       <span className="text-rose-500">-{h.deletions}</span>
                     </div>
                   </div>
                   <div className="flex w-32 shrink-0 flex-col items-end gap-1">
                     <span className="text-xs tabular-nums">
-                      {h.commits} commits
+                      {t("hotspotsPage.commitsCount", { count: h.commits })}
                     </span>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                       <div

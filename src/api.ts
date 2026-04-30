@@ -19,6 +19,7 @@ import type {
   HeatmapData,
   LanguageStat,
   OwnershipReport,
+  RepoHealth,
   RepoSparkline,
   RepoSummary,
   Repository,
@@ -94,6 +95,7 @@ export const api = {
       maxDepth,
       limit,
     }),
+  getRepoHealth: (id: number) => invoke<RepoHealth>("get_repo_health", { id }),
 };
 
 export async function pickRepositoryDir(): Promise<string | null> {

@@ -129,6 +129,21 @@ export function BranchesPage() {
                               {t("branchesFilter.staleBadge")}
                             </span>
                           )}
+                          {b.risk === "low" && (
+                            <span className="rounded bg-yellow-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-yellow-600 dark:text-yellow-400">
+                              {t("branchesFilter.riskLow")}
+                            </span>
+                          )}
+                          {b.risk === "medium" && (
+                            <span className="rounded bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400">
+                              {t("branchesFilter.riskMedium")}
+                            </span>
+                          )}
+                          {b.risk === "high" && (
+                            <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400">
+                              {t("branchesFilter.riskHigh")}
+                            </span>
+                          )}
                           {!b.isHead && b.ahead === 0 && b.behind === 0 ? (
                             <span className="text-[11px] text-muted-foreground">
                               {t("branches.upToDate")}
@@ -164,7 +179,7 @@ export function BranchesPage() {
                           </div>
                         )}
                         {c && (
-                          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             <span>{c.authorName}</span>
                             <span>·</span>
                             <span>{formatDate(c.timestamp, i18n.language)}</span>
@@ -173,6 +188,16 @@ export function BranchesPage() {
                                 <span>·</span>
                                 <span>
                                   {t("branchesFilter.daysAgo", { count: ageDays })}
+                                </span>
+                              </>
+                            )}
+                            {b.uniqueCommits > 0 && !b.isHead && (
+                              <>
+                                <span>·</span>
+                                <span>
+                                  {t("branchesFilter.uniqueCommits", {
+                                    count: b.uniqueCommits,
+                                  })}
                                 </span>
                               </>
                             )}

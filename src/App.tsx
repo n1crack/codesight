@@ -47,6 +47,9 @@ const InsightsSection = lazy(() =>
     default: m.InsightsSection,
   })),
 );
+const HealthPage = lazy(() =>
+  import("@/pages/HealthPage").then((m) => ({ default: m.HealthPage })),
+);
 const HotspotsPage = lazy(() =>
   import("@/pages/HotspotsPage").then((m) => ({ default: m.HotspotsPage })),
 );
@@ -109,7 +112,8 @@ const router = createBrowserRouter([
         path: "insights",
         element: <InsightsSection />,
         children: [
-          { index: true, element: <Navigate to="hotspots" replace /> },
+          { index: true, element: <Navigate to="health" replace /> },
+          { path: "health", element: <HealthPage /> },
           { path: "hotspots", element: <HotspotsPage /> },
           { path: "ownership", element: <OwnershipPage /> },
           { path: "authors", element: <ContributorsPage /> },

@@ -15,14 +15,15 @@
   "section": {
     "activity": {
       "title": "Aktivite",
-      "subtitle": "Deterministik aktivite metrikleri",
+      "subtitle": "Doğrudan ölçüme dayalı aktivite metrikleri",
       "heatmap": "Isı Haritası",
       "timeline": "Zaman Çizelgesi",
-      "patterns": "Patern"
+      "patterns": "Örüntü"
     },
     "insights": {
       "title": "İçgörüler",
-      "subtitle": "Heuristik-tabanlı içgörüler",
+      "subtitle": "Sezgisel içgörüler",
+      "health": "Sağlık",
       "hotspots": "Sıcak Noktalar",
       "ownership": "Sahiplik",
       "authors": "Yazarlar",
@@ -30,7 +31,7 @@
     },
     "graph": {
       "title": "Grafik",
-      "subtitle": "Git graph zekâsı",
+      "subtitle": "Git grafiği zekâsı",
       "dag": "DAG",
       "branches": "Dallar",
       "releases": "Sürümler"
@@ -45,7 +46,9 @@
     "remove": "Depoyu kaldır",
     "confirmRemove": "\"{{name}}\" codesight'tan kaldırılsın mı? Diskteki dosyalar etkilenmez.",
     "filterPlaceholder": "Depo filtrele…",
-    "noMatch": "Eşleşen depo yok"
+    "noMatch": "Eşleşen depo yok",
+    "dragHint": "Sürükle ya da çift-tıklayıp sıfırla",
+    "last30Suffix": "{{count}} / 30g"
   },
   "common": {
     "loading": "Yükleniyor…",
@@ -223,7 +226,9 @@
     "couplingHint": "Birlikte değişen dosya çiftleri (≥ 2 ortak commit)",
     "directoryHint": "Üst-seviye klasöre göre toplanmış",
     "depth": "Derinlik",
-    "jointChanges": "ortak değişim"
+    "jointChanges": "ortak değişim",
+    "commitsCount": "{{count}} commit",
+    "filesCount": "{{count}} dosya"
   },
   "branchesFilter": {
     "all": "Tüm dallar",
@@ -232,14 +237,61 @@
     "stale90": "90+ gün sessiz",
     "stale180": "180+ gün sessiz",
     "staleBadge": "atıl",
-    "daysAgo": "{{count}}g önce"
+    "daysAgo": "{{count}}g önce",
+    "riskLow": "düşük risk",
+    "riskMedium": "orta risk",
+    "riskHigh": "yüksek risk",
+    "uniqueCommits": "{{count}} özgün commit"
+  },
+  "health": {
+    "title": "Depo sağlığı",
+    "subtitle": "Altı doğrudan ölçülen alt-skorun birleşimi",
+    "outOf": "/ {{max}}",
+    "labelExcellent": "Mükemmel",
+    "labelGood": "İyi",
+    "labelFair": "Orta",
+    "labelPoor": "Zayıf",
+    "subRecency": "Son aktivite",
+    "subVolume": "Aktivite hacmi",
+    "subBusFactor": "Bilgi yoğunluğu",
+    "subBranches": "Dal hijyeni",
+    "subDocs": "Dokümantasyon & testler",
+    "subConventional": "Standart commit mesajları",
+    "breakdownTitle": "Detaylar",
+    "hint": {
+      "recencyNone": "Hiç commit bulunamadı",
+      "recencyToday": "Son commit bugün",
+      "recencyDays": "Son commit {{days}} gün önce",
+      "volume": "Son 90 günde {{count}} commit",
+      "busFactor": "{{value}} kişi kod değişikliklerinin yarısını taşıyor",
+      "branchesClean": "{{local}} yerel dalın hepsi aktif",
+      "branchesStale": "{{local}} yerel daldan {{stale}} tanesi atıl (90+ gün commit yok, HEAD değil)",
+      "branchesEmpty": "Yerel dal yok",
+      "docsAll": "README, docs/, testler — hepsi var",
+      "docsPartial": "{{readme}} · {{docs}} · {{tests}}",
+      "docsReadmePresent": "README ✓",
+      "docsReadmeMissing": "README yok",
+      "docsDirPresent": "docs/ ✓",
+      "docsDirMissing": "docs/ yok",
+      "docsTestsPresent": "test ✓",
+      "docsTestsMissing": "test yok",
+      "conventionalNotEnough": "Değerlendirmek için yeterli commit yok",
+      "conventionalPct": "Commit'lerin %{{pct}}'i standart prefix kullanıyor"
+    }
   },
   "command": {
     "placeholder": "Komut yaz veya ara…",
     "noResults": "Eşleşme yok",
     "page": "Sayfa",
     "repository": "Depo",
-    "openShortcut": "⌘K"
+    "openShortcut": "⌘K",
+    "esc": "esc",
+    "hintNavigate": "↑↓ gezin",
+    "hintSelect": "↵ seç"
+  },
+  "topbar": {
+    "refresh": "Yenile",
+    "refreshTitle": "Verileri yenile"
   },
   "settings": {
     "title": "Ayarlar",
