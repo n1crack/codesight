@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { AlertTriangle, Crown, UserMinus } from "lucide-react";
 
 import { api } from "@/api";
 import {
@@ -13,6 +14,94 @@ import {
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { useAppState } from "@/state/AppState";
+import { cn } from "@/lib/utils";
+import type { OwnershipAlert } from "@/types";
+
+const ALERT_STYLES: Record<
+  OwnershipAlert["kind"],
+  {
+    icon: React.ComponentType<{ size?: number }>;
+    border: string;
+    iconBg: string;
+    iconColor: string;
+  }
+> = {
+  busFactorOne: {
+    icon: Crown,
+    border: "border-rose-500/30 bg-rose-500/5",
+    iconBg: "bg-rose-500/15",
+    iconColor: "text-rose-500",
+  },
+  highConcentration: {
+    icon: AlertTriangle,
+    border: "border-amber-500/30 bg-amber-500/5",
+    iconBg: "bg-amber-500/15",
+    iconColor: "text-amber-500",
+  },
+  alumni: {
+    icon: UserMinus,
+    border: "border-sky-500/30 bg-sky-500/5",
+    iconBg: "bg-sky-500/15",
+    iconColor: "text-sky-500",
+  },
+};
+
+function AlertsCard({ alerts }: { alerts: OwnershipAlert[] }) {
+  const { t } = useTranslation();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("ownership.alerts.title")}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {alerts.map((alert, i) => {
+          const style = ALERT_STYLES[alert.kind];
+          const Icon = style.icon;
+          let body: React.ReactNode = null;
+          switch (alert.kind) {
+            case "busFactorOne":
+              body = t("ownership.alerts.busFactorOne", {
+                name: alert.authorName,
+              });
+              break;
+            case "highConcentration":
+              body = t("ownership.alerts.highConcentration", {
+                count: alert.count,
+                pct: alert.thresholdPct,
+              });
+              break;
+            case "alumni":
+              body = t("ownership.alerts.alumni", {
+                count: alert.count,
+                days: alert.days,
+              });
+              break;
+          }
+          return (
+            <div
+              key={i}
+              className={cn(
+                "flex items-start gap-3 rounded-md border p-3",
+                style.border,
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+                  style.iconBg,
+                  style.iconColor,
+                )}
+              >
+                <Icon size={14} />
+              </div>
+              <p className="flex-1 text-sm">{body}</p>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
 
 export function OwnershipPage() {
   const { t } = useTranslation();
@@ -46,6 +135,9 @@ export function OwnershipPage() {
         subtitle={summary.data?.repo.name ?? t("ownership.subtitle")}
       />
       <div className="flex flex-col gap-4 p-6">
+        {ownership.data?.alerts && ownership.data.alerts.length > 0 && (
+          <AlertsCard alerts={ownership.data.alerts} />
+        )}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Card>
             <CardHeader>

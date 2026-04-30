@@ -154,7 +154,12 @@
     "personalHeatmap": "Kişisel ısı haritası",
     "topFiles": "En çok değiştirdiği dosyalar",
     "recentCommits": "Son commit'ler",
-    "openProfile": "Profili aç"
+    "openProfile": "Profili aç",
+    "cohortTitle": "Zaman içinde katkıda bulunan kohortu",
+    "cohortHint": "Ay bazında aktif / yeni / geri dönen yazarlar",
+    "cohortActive": "Aktif",
+    "cohortNew": "Yeni",
+    "cohortReturning": "Geri dönen"
   },
   "search": {
     "title": "Commit arama",
@@ -171,8 +176,8 @@
   },
   "ownership": {
     "title": "Kod sahipliği",
-    "subtitle": "Bus factor ve başlıca sahiplik",
-    "busFactor": "Bus factor",
+    "subtitle": "Bilgi yoğunluğu ve başlıca sahiplik",
+    "busFactor": "Bilgi yoğunluğu",
     "busFactorHint": "Değişikliklerin %50'sini taşıyan minimum yazar sayısı",
     "totalAuthors": "Toplam yazar",
     "topAuthors": "Pay'a göre öne çıkan yazarlar",
@@ -180,7 +185,13 @@
     "primaryAuthor": "Birincil",
     "share": "pay",
     "distinctAuthors": "yazar",
-    "commits": "commit"
+    "commits": "commit",
+    "alerts": {
+      "title": "Dikkat",
+      "busFactorOne": "{{name}} tek başına kod değişikliklerinin %50'sinden fazlasını taşıyor — kritik konsantrasyon.",
+      "highConcentration": "{{count}} dosyada tek sahip %{{pct}}+ payla — sahiplik riski.",
+      "alumni": "{{count}} yazar {{days}}+ gündür commit atmıyor — bilgi atıl olabilir."
+    }
   },
   "graph": {
     "title": "Commit grafiği",
@@ -223,12 +234,19 @@
     "tabFiles": "Dosyalar",
     "tabDirectories": "Klasörler",
     "tabCouplings": "Çiftler",
+    "tabRisk": "Değişim riski",
     "couplingHint": "Birlikte değişen dosya çiftleri (≥ 2 ortak commit)",
     "directoryHint": "Üst-seviye klasöre göre toplanmış",
+    "riskHint": "Yüksek değişim × konsantre sahiplik × yakın zamanda dokunulma",
     "depth": "Derinlik",
     "jointChanges": "ortak değişim",
     "commitsCount": "{{count}} commit",
-    "filesCount": "{{count}} dosya"
+    "filesCount": "{{count}} dosya",
+    "riskLow": "düşük",
+    "riskMedium": "orta",
+    "riskHigh": "yüksek",
+    "lastTouched": "{{days}}g önce",
+    "primarySharePct": "%{{pct}} {{name}} tarafından"
   },
   "branchesFilter": {
     "all": "Tüm dallar",

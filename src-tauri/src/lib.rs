@@ -12,15 +12,17 @@ use crate::analysis::{
     get_commit_graph_impl, get_commit_heatmap_impl, get_commit_message_stats_impl,
     get_commit_timeline_impl, get_contributor_detail_impl, get_contributor_heatmap_impl,
     get_contributor_recent_commits_impl, get_contributor_top_files_impl,
-    get_directory_hotspots_impl, get_file_couplings_impl, get_file_hotspots_impl,
-    get_global_heatmap_impl, get_global_recent_commits_impl, get_global_summary_impl,
-    get_language_breakdown_impl, get_ownership_report_impl, get_recent_commits_impl,
-    get_repo_health_impl, get_repo_summary_impl, get_repos_sparklines_impl,
-    get_top_contributors_impl, list_branches_impl, list_known_authors_impl, list_tags_impl,
-    search_commits_impl, ActivityPatterns, BranchInfo, ChurnPoint, CommitDetail, CommitInfo,
-    CommitMessageStats, Contributor, ContributorDetail, DirectoryHotspot, FileCoupling,
-    FileHotspot, GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData, LanguageStat,
-    OwnershipReport, RepoHealth, RepoSparkline, RepoSummary, SearchParams, TagInfo, TimelinePoint,
+    get_churn_risk_impl, get_contributor_cohort_impl, get_directory_hotspots_impl,
+    get_file_couplings_impl, get_file_hotspots_impl, get_global_heatmap_impl,
+    get_global_recent_commits_impl, get_global_summary_impl, get_language_breakdown_impl,
+    get_ownership_report_impl, get_recent_commits_impl, get_repo_health_impl,
+    get_repo_summary_impl, get_repos_sparklines_impl, get_top_contributors_impl,
+    list_branches_impl, list_known_authors_impl, list_tags_impl, search_commits_impl,
+    ActivityPatterns, BranchInfo, ChurnPoint, ChurnRiskFile, CommitDetail, CommitInfo,
+    CommitMessageStats, Contributor, ContributorCohortPoint, ContributorDetail, DirectoryHotspot,
+    FileCoupling, FileHotspot, GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData,
+    LanguageStat, OwnershipReport, RepoHealth, RepoSparkline, RepoSummary, SearchParams, TagInfo,
+    TimelinePoint,
 };
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
@@ -400,6 +402,29 @@ async fn get_repo_health(
         .unwrap()
 }
 
+#[tauri::command]
+async fn get_churn_risk(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    limit: usize,
+) -> AppResult<Vec<ChurnRiskFile>> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || get_churn_risk_impl(&db, id, limit))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn get_contributor_cohort(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+) -> AppResult<Vec<ContributorCohortPoint>> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || get_contributor_cohort_impl(&db, id))
+        .await
+        .unwrap()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -444,6 +469,8 @@ pub fn run() {
             get_file_couplings,
             get_directory_hotspots,
             get_repo_health,
+            get_churn_risk,
+            get_contributor_cohort,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

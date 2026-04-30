@@ -170,6 +170,19 @@ pub struct AuthorShare {
     pub additions: u32,
     pub deletions: u32,
     pub share_pct: f32,
+    pub last_commit_at: Option<String>,
+    pub days_since_last: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum OwnershipAlert {
+    #[serde(rename_all = "camelCase")]
+    BusFactorOne { author_name: String, author_email: String },
+    #[serde(rename_all = "camelCase")]
+    HighConcentration { count: u32, threshold_pct: u32 },
+    #[serde(rename_all = "camelCase")]
+    Alumni { count: u32, days: u32 },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -190,6 +203,31 @@ pub struct OwnershipReport {
     pub total_authors: u32,
     pub top_authors: Vec<AuthorShare>,
     pub files: Vec<FileOwnership>,
+    pub alerts: Vec<OwnershipAlert>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChurnRiskFile {
+    pub path: String,
+    pub commits: u32,
+    pub primary_name: String,
+    pub primary_email: String,
+    pub primary_share_pct: f32,
+    pub last_touched: String,
+    pub days_since_last: i64,
+    pub risk_score: f32,
+    pub risk_level: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContributorCohortPoint {
+    pub bucket: String,
+    pub active: u32,
+    pub new_authors: u32,
+    pub returning: u32,
+    pub leaving: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1493,6 +1531,7 @@ pub fn get_ownership_report_impl(
         commits: u32,
         additions: u32,
         deletions: u32,
+        last_commit: Option<DateTime<Utc>>,
     }
     let mut by_author: HashMap<String, AuthorAcc> = HashMap::new();
 
@@ -1506,16 +1545,19 @@ pub fn get_ownership_report_impl(
         let author_email = commit.author().email().unwrap_or("").to_lowercase();
         let author_name = commit.author().name().unwrap_or("unknown").to_string();
         let stats = diff.stats()?;
+        let ts = commit_time(commit);
 
         let aacc = by_author.entry(author_email.clone()).or_insert(AuthorAcc {
             name: author_name.clone(),
             commits: 0,
             additions: 0,
             deletions: 0,
+            last_commit: None,
         });
         aacc.commits = aacc.commits.saturating_add(1);
         aacc.additions = aacc.additions.saturating_add(stats.insertions() as u32);
         aacc.deletions = aacc.deletions.saturating_add(stats.deletions() as u32);
+        aacc.last_commit = Some(aacc.last_commit.map_or(ts, |l| l.max(ts)));
 
         let delta_count = diff.deltas().len();
         for idx in 0..delta_count {
@@ -1550,6 +1592,7 @@ pub fn get_ownership_report_impl(
         .map(|a| (a.additions as u64) + (a.deletions as u64))
         .sum();
 
+    let now = Utc::now();
     let mut shares: Vec<AuthorShare> = by_author
         .iter()
         .map(|(email, a)| {
@@ -1559,6 +1602,7 @@ pub fn get_ownership_report_impl(
             } else {
                 0.0
             };
+            let days = a.last_commit.map(|t| (now - t).num_days());
             AuthorShare {
                 name: a.name.clone(),
                 email: email.clone(),
@@ -1566,6 +1610,8 @@ pub fn get_ownership_report_impl(
                 additions: a.additions,
                 deletions: a.deletions,
                 share_pct: pct,
+                last_commit_at: a.last_commit.map(|t| t.to_rfc3339()),
+                days_since_last: days,
             }
         })
         .collect();
@@ -1615,12 +1661,238 @@ pub fn get_ownership_report_impl(
     files.sort_by(|a, b| b.total_commits.cmp(&a.total_commits));
     files.truncate(40);
 
+    let mut alerts: Vec<OwnershipAlert> = Vec::new();
+    if bus_factor == 1 {
+        if let Some(top) = shares.first() {
+            alerts.push(OwnershipAlert::BusFactorOne {
+                author_name: top.name.clone(),
+                author_email: top.email.clone(),
+            });
+        }
+    }
+    let high_conc_count = files
+        .iter()
+        .filter(|f| f.primary_share_pct >= 80.0 && f.total_commits >= 3)
+        .count() as u32;
+    if high_conc_count > 0 {
+        alerts.push(OwnershipAlert::HighConcentration {
+            count: high_conc_count,
+            threshold_pct: 80,
+        });
+    }
+    let alumni_count = shares
+        .iter()
+        .filter(|s| s.commits >= 3 && s.days_since_last.unwrap_or(0) > 90)
+        .count() as u32;
+    if alumni_count > 0 {
+        alerts.push(OwnershipAlert::Alumni {
+            count: alumni_count,
+            days: 90,
+        });
+    }
+
     Ok(OwnershipReport {
         bus_factor,
         total_authors,
         top_authors,
         files,
+        alerts,
     })
+}
+
+pub fn get_churn_risk_impl(
+    db: &crate::db::Db,
+    id: i64,
+    limit: usize,
+) -> AppResult<Vec<ChurnRiskFile>> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = open(&repo_meta.path)?;
+    let now = Utc::now();
+
+    struct Acc {
+        commits: u32,
+        last_touched: DateTime<Utc>,
+        per_author: HashMap<String, (String, u32)>,
+    }
+    let mut by_file: HashMap<String, Acc> = HashMap::new();
+
+    walk_diffs(&repo, |commit, diff| {
+        let author_email = commit.author().email().unwrap_or("").to_lowercase();
+        let author_name = commit.author().name().unwrap_or("unknown").to_string();
+        let ts = commit_time(commit);
+        let count = diff.deltas().len();
+        for idx in 0..count {
+            let Some(delta) = diff.get_delta(idx) else {
+                continue;
+            };
+            let path = delta
+                .new_file()
+                .path()
+                .or_else(|| delta.old_file().path())
+                .map(|p| p.display().to_string())
+                .unwrap_or_default();
+            if path.is_empty() {
+                continue;
+            }
+            let acc = by_file.entry(path).or_insert(Acc {
+                commits: 0,
+                last_touched: ts,
+                per_author: HashMap::new(),
+            });
+            acc.commits = acc.commits.saturating_add(1);
+            if ts > acc.last_touched {
+                acc.last_touched = ts;
+            }
+            let entry = acc
+                .per_author
+                .entry(author_email.clone())
+                .or_insert_with(|| (author_name.clone(), 0));
+            entry.1 = entry.1.saturating_add(1);
+        }
+        Ok(())
+    })?;
+
+    let mut out: Vec<ChurnRiskFile> = by_file
+        .into_iter()
+        .filter_map(|(path, acc)| {
+            if acc.commits < 3 {
+                return None;
+            }
+            let primary = acc
+                .per_author
+                .iter()
+                .max_by_key(|(_, (_, c))| *c)
+                .map(|(email, (name, c))| (email.clone(), name.clone(), *c))
+                .unwrap_or_else(|| (String::new(), String::new(), 0));
+            let primary_share = if acc.commits > 0 {
+                (primary.2 as f32 / acc.commits as f32) * 100.0
+            } else {
+                0.0
+            };
+            let days_since_last = (now - acc.last_touched).num_days();
+            let churn_factor = (acc.commits as f32 / 50.0).min(1.0);
+            let ownership_factor = if primary_share >= 50.0 {
+                primary_share / 100.0
+            } else {
+                0.0
+            };
+            let recency_factor = (1.0 - (days_since_last as f32 / 90.0))
+                .max(0.0)
+                .min(1.0);
+            let risk_score = churn_factor * ownership_factor * recency_factor;
+            if risk_score < 0.05 {
+                return None;
+            }
+            let risk_level = if risk_score >= 0.5 {
+                "high"
+            } else if risk_score >= 0.2 {
+                "medium"
+            } else {
+                "low"
+            };
+            Some(ChurnRiskFile {
+                path,
+                commits: acc.commits,
+                primary_name: primary.1,
+                primary_email: primary.0,
+                primary_share_pct: primary_share,
+                last_touched: acc.last_touched.to_rfc3339(),
+                days_since_last,
+                risk_score,
+                risk_level: risk_level.into(),
+            })
+        })
+        .collect();
+
+    out.sort_by(|a, b| {
+        b.risk_score
+            .partial_cmp(&a.risk_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    out.truncate(limit);
+    Ok(out)
+}
+
+pub fn get_contributor_cohort_impl(
+    db: &crate::db::Db,
+    id: i64,
+) -> AppResult<Vec<ContributorCohortPoint>> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = open(&repo_meta.path)?;
+
+    let mut by_month: BTreeMap<String, std::collections::HashSet<String>> = BTreeMap::new();
+    let mut author_first_month: HashMap<String, String> = HashMap::new();
+
+    let mut seen: std::collections::HashSet<git2::Oid> = std::collections::HashSet::new();
+    for oid in walk(&repo)? {
+        let oid = oid?;
+        if !seen.insert(oid) {
+            continue;
+        }
+        let commit = repo.find_commit(oid)?;
+        let email = commit.author().email().unwrap_or("").to_lowercase();
+        if email.is_empty() {
+            continue;
+        }
+        let ts = commit_time(&commit);
+        let month = ts.format("%Y-%m").to_string();
+        by_month
+            .entry(month.clone())
+            .or_default()
+            .insert(email.clone());
+        author_first_month
+            .entry(email)
+            .and_modify(|m| {
+                if month < *m {
+                    *m = month.clone();
+                }
+            })
+            .or_insert(month);
+    }
+
+    let months: Vec<String> = by_month.keys().cloned().collect();
+    let mut prev_active: Option<std::collections::HashSet<String>> = None;
+    let mut out: Vec<ContributorCohortPoint> = Vec::with_capacity(months.len());
+
+    for m in &months {
+        let active_set = by_month.get(m).cloned().unwrap_or_default();
+        let active = active_set.len() as u32;
+        let new_authors = active_set
+            .iter()
+            .filter(|e| author_first_month.get(*e).map(|fm| fm == m).unwrap_or(false))
+            .count() as u32;
+        let returning = if let Some(prev) = &prev_active {
+            active_set
+                .iter()
+                .filter(|e| {
+                    !prev.contains(*e)
+                        && author_first_month
+                            .get(*e)
+                            .map(|fm| fm != m)
+                            .unwrap_or(false)
+                })
+                .count() as u32
+        } else {
+            0
+        };
+        let leaving = if let Some(prev) = &prev_active {
+            prev.iter()
+                .filter(|e| !active_set.contains(*e))
+                .count() as u32
+        } else {
+            0
+        };
+        out.push(ContributorCohortPoint {
+            bucket: m.clone(),
+            active,
+            new_authors,
+            returning,
+            leaving,
+        });
+        prev_active = Some(active_set);
+    }
+
+    Ok(out)
 }
 
 pub fn get_commit_graph_impl(

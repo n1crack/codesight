@@ -2,9 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Users } from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { api } from "@/api";
-import { Card, CardContent } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { useAppState } from "@/state/AppState";
@@ -26,6 +36,12 @@ export function ContributorsPage() {
     enabled: selectedRepoId != null,
   });
 
+  const cohort = useQuery({
+    queryKey: ["contribCohort", selectedRepoId],
+    queryFn: () => api.getContributorCohort(selectedRepoId!),
+    enabled: selectedRepoId != null,
+  });
+
   if (selectedRepoId == null) {
     return (
       <>
@@ -44,7 +60,104 @@ export function ContributorsPage() {
         title={t("contributors.title")}
         subtitle={t("contributors.subtitle")}
       />
-      <div className="p-6">
+      <div className="flex flex-col gap-4 p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("contributors.cohortTitle")}</CardTitle>
+            <div className="text-xs text-muted-foreground">
+              {t("contributors.cohortHint")}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-56 w-full">
+              {cohort.isPending ? (
+                <Skeleton className="h-full w-full" />
+              ) : !cohort.data?.length ? (
+                <p className="text-sm text-muted-foreground">
+                  {t("common.noData")}
+                </p>
+              ) : (
+                <ResponsiveContainer>
+                  <AreaChart
+                    data={cohort.data}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="cohortActive" x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="0%"
+                          stopColor="var(--color-chart-1)"
+                          stopOpacity={0.4}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="var(--color-chart-1)"
+                          stopOpacity={0.05}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      stroke="var(--color-border)"
+                      strokeDasharray="3 3"
+                    />
+                    <XAxis
+                      dataKey="bucket"
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      minTickGap={32}
+                    />
+                    <YAxis
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      width={32}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--color-popover)",
+                        color: "var(--color-popover-foreground)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 6,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Area
+                      type="monotone"
+                      dataKey="active"
+                      name={t("contributors.cohortActive")}
+                      stroke="var(--color-chart-1)"
+                      fill="url(#cohortActive)"
+                      strokeWidth={2}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="newAuthors"
+                      name={t("contributors.cohortNew")}
+                      stroke="var(--color-chart-2)"
+                      fill="var(--color-chart-2)"
+                      fillOpacity={0.25}
+                      strokeWidth={1.5}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="returning"
+                      name={t("contributors.cohortReturning")}
+                      stroke="var(--color-chart-3)"
+                      fill="var(--color-chart-3)"
+                      fillOpacity={0.18}
+                      strokeWidth={1.5}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent className="p-0">
             {contributors.isPending ? (

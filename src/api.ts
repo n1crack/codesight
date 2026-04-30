@@ -8,7 +8,9 @@ import type {
   CommitInfo,
   CommitMessageStats,
   Contributor,
+  ChurnRiskFile,
   CommitDetail,
+  ContributorCohortPoint,
   ContributorDetail,
   DirectoryHotspot,
   FileCoupling,
@@ -96,6 +98,10 @@ export const api = {
       limit,
     }),
   getRepoHealth: (id: number) => invoke<RepoHealth>("get_repo_health", { id }),
+  getChurnRisk: (id: number, limit: number) =>
+    invoke<ChurnRiskFile[]>("get_churn_risk", { id, limit }),
+  getContributorCohort: (id: number) =>
+    invoke<ContributorCohortPoint[]>("get_contributor_cohort", { id }),
 };
 
 export async function pickRepositoryDir(): Promise<string | null> {

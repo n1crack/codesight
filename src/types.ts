@@ -145,7 +145,14 @@ export interface AuthorShare {
   additions: number;
   deletions: number;
   sharePct: number;
+  lastCommitAt: string | null;
+  daysSinceLast: number | null;
 }
+
+export type OwnershipAlert =
+  | { kind: "busFactorOne"; authorName: string; authorEmail: string }
+  | { kind: "highConcentration"; count: number; thresholdPct: number }
+  | { kind: "alumni"; count: number; days: number };
 
 export interface FileOwnership {
   path: string;
@@ -161,6 +168,29 @@ export interface OwnershipReport {
   totalAuthors: number;
   topAuthors: AuthorShare[];
   files: FileOwnership[];
+  alerts: OwnershipAlert[];
+}
+
+export type ChurnRiskLevel = "low" | "medium" | "high";
+
+export interface ChurnRiskFile {
+  path: string;
+  commits: number;
+  primaryName: string;
+  primaryEmail: string;
+  primarySharePct: number;
+  lastTouched: string;
+  daysSinceLast: number;
+  riskScore: number;
+  riskLevel: ChurnRiskLevel;
+}
+
+export interface ContributorCohortPoint {
+  bucket: string;
+  active: number;
+  newAuthors: number;
+  returning: number;
+  leaving: number;
 }
 
 export interface GraphRef {

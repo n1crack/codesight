@@ -154,7 +154,12 @@
     "personalHeatmap": "Personal heatmap",
     "topFiles": "Their top files",
     "recentCommits": "Recent commits",
-    "openProfile": "View profile"
+    "openProfile": "View profile",
+    "cohortTitle": "Contributor cohort over time",
+    "cohortHint": "Active / new / returning authors per month",
+    "cohortActive": "Active",
+    "cohortNew": "New",
+    "cohortReturning": "Returning"
   },
   "search": {
     "title": "Commit search",
@@ -180,7 +185,13 @@
     "primaryAuthor": "Primary",
     "share": "share",
     "distinctAuthors": "authors",
-    "commits": "commits"
+    "commits": "commits",
+    "alerts": {
+      "title": "Heads up",
+      "busFactorOne": "{{name}} alone carries 50%+ of code changes — single point of failure.",
+      "highConcentration": "{{count}} files have a single owner with {{pct}}%+ share — bus risk.",
+      "alumni": "{{count}} contributors have not committed in {{days}}+ days — knowledge may be drifting."
+    }
   },
   "graph": {
     "title": "Commit graph",
@@ -223,12 +234,19 @@
     "tabFiles": "Files",
     "tabDirectories": "Directories",
     "tabCouplings": "Couplings",
+    "tabRisk": "Churn risk",
     "couplingHint": "Pairs of files that change together (≥ 2 joint commits)",
     "directoryHint": "Aggregated by top-level directory",
+    "riskHint": "High churn × concentrated ownership × recent activity",
     "depth": "Depth",
     "jointChanges": "joint changes",
     "commitsCount": "{{count}} commits",
-    "filesCount": "{{count}} files"
+    "filesCount": "{{count}} files",
+    "riskLow": "low",
+    "riskMedium": "medium",
+    "riskHigh": "high",
+    "lastTouched": "{{days}}d ago",
+    "primarySharePct": "{{pct}}% by {{name}}"
   },
   "branchesFilter": {
     "all": "All branches",
