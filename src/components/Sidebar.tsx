@@ -50,6 +50,7 @@ export function Sidebar() {
   const { selectedRepoId, setSelectedRepoId } = useAppState();
   const [filter, setFilter] = useState("");
   const topPaneRef = useRef<HTMLDivElement>(null);
+  const [isResizing, setIsResizing] = useState(false);
   const [topPaneH, setTopPaneH] = useState<number | null>(() => {
     const raw = Number(localStorage.getItem(TOP_PANE_KEY) || "");
     return Number.isFinite(raw) && raw > 0 ? raw : null;
@@ -65,6 +66,7 @@ export function Sidebar() {
 
   const startResize = (e: React.PointerEvent) => {
     e.preventDefault();
+    setIsResizing(true);
     const startY = e.clientY;
     const startH =
       topPaneH ?? topPaneRef.current?.offsetHeight ?? TOP_PANE_MIN;
@@ -79,6 +81,7 @@ export function Sidebar() {
       window.removeEventListener("pointerup", onUp);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      setIsResizing(false);
     };
     document.body.style.cursor = "row-resize";
     document.body.style.userSelect = "none";
@@ -245,10 +248,18 @@ export function Sidebar() {
         aria-label="Resize repositories pane"
         onPointerDown={startResize}
         onDoubleClick={resetTopPane}
-        className="group relative flex h-1.5 shrink-0 cursor-row-resize items-center justify-center border-t border-sidebar-border hover:border-primary/40 hover:bg-primary/10 active:bg-primary/15"
+        className="group relative h-2 shrink-0 cursor-row-resize select-none bg-sidebar"
         title="Drag to resize · double-click to reset"
       >
-        <span className="pointer-events-none h-0.5 w-6 rounded-full bg-transparent group-hover:bg-primary/40" />
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-x-0 top-1/2 block h-px -translate-y-1/2",
+            isResizing
+              ? "bg-primary"
+              : "bg-sidebar-border group-hover:bg-primary/60",
+          )}
+        />
       </div>
 
       <div className="flex items-center justify-between gap-2 px-3 pb-1 pt-2">
