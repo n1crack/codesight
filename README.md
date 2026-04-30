@@ -6,6 +6,28 @@ Built with **React + Rust + Tauri**. Single binary; no system git or sqlite requ
 
 ---
 
+## Why codesight?
+
+- **Replace GitHub Insights for offline / private workflows** — same questions answered, your code never leaves the laptop.
+- **Audit repositories without cloud exposure** — point it at a `.git` directory, get bus factor, ownership maps, churn risk, in seconds.
+- **Detect code ownership concentration and bus-factor risk** — surface single points of failure before they bite.
+- **Surface churn-heavy hotspots before they become maintenance debt** — high-churn × concentrated-ownership × recent files are flagged automatically.
+- **Analyze unlimited repositories locally with zero SaaS dependency** — no per-seat fee, no per-repo limit, no rate limit, no quotas.
+
+---
+
+## Privacy by design
+
+- **No telemetry.** Nothing about your usage, repos, code, or identity is reported anywhere.
+- **No cloud sync.** Nothing leaves the machine.
+- **No code upload.** Diffs, commit messages, file paths — all stay local.
+- **No external API calls.** No GitHub, no analytics, no error reporters, no fonts/assets fetched at runtime.
+- **All analysis runs entirely on-device** — `git2` (vendored libgit2) reads `.git` directly; results live only in your local SQLite at `~/Library/Application Support/codesight/codesight.sqlite` (or the equivalent on your OS).
+
+The app ships as a single self-contained binary. There is no system git or sqlite dependency, no node runtime, no network permissions in the Tauri capabilities other than file-system dialogs.
+
+---
+
 ## The three pillars
 
 codesight is organized around three coherent axes. Every metric, every page, every backend command belongs to exactly one of them.
