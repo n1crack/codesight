@@ -5,19 +5,36 @@
   },
   "nav": {
     "home": "Home",
-    "overview": "Overview",
-    "heatmap": "Heatmap",
-    "timeline": "Timeline",
     "activity": "Activity",
-    "branches": "Branches",
-    "tags": "Releases",
-    "contributors": "Contributors",
-    "ownership": "Ownership",
-    "search": "Search",
+    "insights": "Insights",
     "graph": "Graph",
-    "hotspots": "Hotspots",
-    "comparison": "Comparison",
+    "search": "Search",
+    "compare": "Compare",
     "settings": "Settings"
+  },
+  "section": {
+    "activity": {
+      "title": "Activity",
+      "subtitle": "Deterministic activity metrics",
+      "heatmap": "Heatmap",
+      "timeline": "Timeline",
+      "patterns": "Patterns"
+    },
+    "insights": {
+      "title": "Insights",
+      "subtitle": "Heuristic-driven insights",
+      "hotspots": "Hotspots",
+      "ownership": "Ownership",
+      "authors": "Authors",
+      "messages": "Messages"
+    },
+    "graph": {
+      "title": "Graph",
+      "subtitle": "Git graph intelligence",
+      "dag": "DAG",
+      "branches": "Branches",
+      "releases": "Releases"
+    }
   },
   "sidebar": {
     "repositories": "Repositories",

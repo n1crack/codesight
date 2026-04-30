@@ -1,0 +1,19 @@
+import { useTranslation } from "react-i18next";
+
+import { SectionShell } from "@/components/SectionShell";
+
+export function InsightsSection() {
+  const { t } = useTranslation();
+  return (
+    <SectionShell
+      title={t("section.insights.title")}
+      subtitle={t("section.insights.subtitle")}
+      tabs={[
+        { to: "hotspots", label: t("section.insights.hotspots") },
+        { to: "ownership", label: t("section.insights.ownership") },
+        { to: "authors", label: t("section.insights.authors") },
+        { to: "messages", label: t("section.insights.messages") },
+      ]}
+    />
+  );
+}

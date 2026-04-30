@@ -7,21 +7,15 @@ import {
   Plus,
   Trash2,
   GitBranch,
-  BarChart3,
-  Calendar,
   GitCompare,
   Settings,
   Activity,
-  Tag as TagIcon,
-  GitMerge,
-  Users,
-  Crown,
   Search,
-  GitGraph,
   Home,
   FolderGit2,
   Inbox,
-  Flame,
+  Brain,
+  GitGraph,
 } from "lucide-react";
 
 import { api, pickRepositoryDir, pickScanRoot } from "@/api";
@@ -32,21 +26,14 @@ import type { Repository } from "@/types";
 
 const GLOBAL_NAV = [
   { to: "/", icon: Home, key: "nav.home" },
-  { to: "/comparison", icon: GitCompare, key: "nav.comparison" },
+  { to: "/search", icon: Search, key: "nav.search" },
+  { to: "/compare", icon: GitCompare, key: "nav.compare" },
   { to: "/settings", icon: Settings, key: "nav.settings" },
 ] as const;
 
 const REPO_NAV = [
-  { to: "/overview", icon: BarChart3, key: "nav.overview" },
-  { to: "/heatmap", icon: GitBranch, key: "nav.heatmap" },
-  { to: "/timeline", icon: Calendar, key: "nav.timeline" },
   { to: "/activity", icon: Activity, key: "nav.activity" },
-  { to: "/branches", icon: GitMerge, key: "nav.branches" },
-  { to: "/contributors", icon: Users, key: "nav.contributors" },
-  { to: "/ownership", icon: Crown, key: "nav.ownership" },
-  { to: "/hotspots", icon: Flame, key: "nav.hotspots" },
-  { to: "/tags", icon: TagIcon, key: "nav.tags" },
-  { to: "/search", icon: Search, key: "nav.search" },
+  { to: "/insights", icon: Brain, key: "nav.insights" },
   { to: "/graph", icon: GitGraph, key: "nav.graph" },
 ] as const;
 
@@ -105,10 +92,10 @@ export function Sidebar() {
 
   const onRepoClick = (id: number) => {
     setSelectedRepoId(id);
-    const repoSection = REPO_NAV.some((n) => location.pathname.startsWith(n.to));
+    const inSection = REPO_NAV.some((n) => location.pathname.startsWith(n.to));
     const onCommit = location.pathname.startsWith("/commits/");
-    if (!repoSection && !onCommit) {
-      navigate("/overview");
+    if (!inSection && !onCommit) {
+      navigate("/activity");
     }
   };
 

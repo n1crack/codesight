@@ -31,7 +31,7 @@ const PITCH = CELL + GAP;
 const LEFT_PAD = 36;
 const TOP_PAD = 16;
 
-export function ActivityPage() {
+export function PatternsPage() {
   const { t } = useTranslation();
   const { selectedRepoId } = useAppState();
 

@@ -4,20 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
-  BarChart3,
-  Calendar,
-  Crown,
-  Flame,
+  Brain,
   FolderGit2,
-  GitBranch,
   GitCompare,
   GitGraph,
-  GitMerge,
   Home,
   Search,
   Settings,
-  Tag as TagIcon,
-  Users,
 } from "lucide-react";
 
 import { api } from "@/api";
@@ -38,19 +31,30 @@ const PAGES: Array<{
   icon: React.ComponentType<{ size?: number }>;
 }> = [
   { to: "/", key: "nav.home", icon: Home },
-  { to: "/overview", key: "nav.overview", icon: BarChart3 },
-  { to: "/heatmap", key: "nav.heatmap", icon: GitBranch },
-  { to: "/timeline", key: "nav.timeline", icon: Calendar },
   { to: "/activity", key: "nav.activity", icon: Activity },
-  { to: "/branches", key: "nav.branches", icon: GitMerge },
-  { to: "/contributors", key: "nav.contributors", icon: Users },
-  { to: "/ownership", key: "nav.ownership", icon: Crown },
-  { to: "/tags", key: "nav.tags", icon: TagIcon },
-  { to: "/hotspots", key: "nav.hotspots", icon: Flame },
-  { to: "/search", key: "nav.search", icon: Search },
+  { to: "/insights", key: "nav.insights", icon: Brain },
   { to: "/graph", key: "nav.graph", icon: GitGraph },
-  { to: "/comparison", key: "nav.comparison", icon: GitCompare },
+  { to: "/search", key: "nav.search", icon: Search },
+  { to: "/compare", key: "nav.compare", icon: GitCompare },
   { to: "/settings", key: "nav.settings", icon: Settings },
+];
+
+const SUB_PAGES: Array<{
+  to: string;
+  parentKey: string;
+  childKey: string;
+  icon: React.ComponentType<{ size?: number }>;
+}> = [
+  { to: "/activity/heatmap", parentKey: "nav.activity", childKey: "section.activity.heatmap", icon: Activity },
+  { to: "/activity/timeline", parentKey: "nav.activity", childKey: "section.activity.timeline", icon: Activity },
+  { to: "/activity/patterns", parentKey: "nav.activity", childKey: "section.activity.patterns", icon: Activity },
+  { to: "/insights/hotspots", parentKey: "nav.insights", childKey: "section.insights.hotspots", icon: Brain },
+  { to: "/insights/ownership", parentKey: "nav.insights", childKey: "section.insights.ownership", icon: Brain },
+  { to: "/insights/authors", parentKey: "nav.insights", childKey: "section.insights.authors", icon: Brain },
+  { to: "/insights/messages", parentKey: "nav.insights", childKey: "section.insights.messages", icon: Brain },
+  { to: "/graph/dag", parentKey: "nav.graph", childKey: "section.graph.dag", icon: GitGraph },
+  { to: "/graph/branches", parentKey: "nav.graph", childKey: "section.graph.branches", icon: GitGraph },
+  { to: "/graph/releases", parentKey: "nav.graph", childKey: "section.graph.releases", icon: GitGraph },
 ];
 
 export function CommandPalette() {
@@ -61,13 +65,12 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   const repos = useQuery({
     queryKey: ["repositories"],
     queryFn: api.listRepositories,
   });
-
-  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -114,6 +117,16 @@ export function CommandPalette() {
         setOpen(false);
       },
     }));
+    const subs: Item[] = SUB_PAGES.map((p) => ({
+      id: `sub:${p.to}`,
+      label: `${t(p.parentKey)} → ${t(p.childKey)}`,
+      hint: t("command.page"),
+      icon: p.icon,
+      action: () => {
+        navigate(p.to);
+        setOpen(false);
+      },
+    }));
     const repoItems: Item[] = (repos.data ?? []).map((r) => ({
       id: `repo:${r.id}`,
       label: r.name,
@@ -121,11 +134,11 @@ export function CommandPalette() {
       icon: FolderGit2,
       action: () => {
         setSelectedRepoId(r.id);
-        navigate("/overview");
+        navigate("/activity");
         setOpen(false);
       },
     }));
-    return [...pages, ...repoItems];
+    return [...pages, ...subs, ...repoItems];
   }, [t, navigate, setSelectedRepoId, repos.data]);
 
   const filtered = useMemo(() => {
@@ -133,7 +146,7 @@ export function CommandPalette() {
     const list = q
       ? items.filter((it) => it.label.toLowerCase().includes(q))
       : items;
-    return list.slice(0, 40);
+    return list.slice(0, 50);
   }, [items, query]);
 
   useEffect(() => {

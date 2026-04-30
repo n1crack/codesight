@@ -5,19 +5,36 @@
   },
   "nav": {
     "home": "Ana Sayfa",
-    "overview": "Genel Bakış",
-    "heatmap": "Isı Haritası",
-    "timeline": "Zaman Çizelgesi",
     "activity": "Aktivite",
-    "branches": "Dallar",
-    "tags": "Sürümler",
-    "contributors": "Katkıda Bulunanlar",
-    "ownership": "Sahiplik",
-    "search": "Arama",
+    "insights": "İçgörüler",
     "graph": "Grafik",
-    "hotspots": "Sıcak Noktalar",
-    "comparison": "Karşılaştırma",
+    "search": "Arama",
+    "compare": "Karşılaştır",
     "settings": "Ayarlar"
+  },
+  "section": {
+    "activity": {
+      "title": "Aktivite",
+      "subtitle": "Deterministik aktivite metrikleri",
+      "heatmap": "Isı Haritası",
+      "timeline": "Zaman Çizelgesi",
+      "patterns": "Patern"
+    },
+    "insights": {
+      "title": "İçgörüler",
+      "subtitle": "Heuristik-tabanlı içgörüler",
+      "hotspots": "Sıcak Noktalar",
+      "ownership": "Sahiplik",
+      "authors": "Yazarlar",
+      "messages": "Mesajlar"
+    },
+    "graph": {
+      "title": "Grafik",
+      "subtitle": "Git graph zekâsı",
+      "dag": "DAG",
+      "branches": "Dallar",
+      "releases": "Sürümler"
+    }
   },
   "sidebar": {
     "repositories": "Depolar",

@@ -1,5 +1,9 @@
 import { lazy } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import {
+  createBrowserRouter,
+  Navigate,
+  RouterProvider,
+} from "react-router-dom";
 
 import { AppShell } from "@/components/AppShell";
 
@@ -11,8 +15,21 @@ const CommitDetailPage = lazy(() =>
     default: m.CommitDetailPage,
   })),
 );
-const OverviewPage = lazy(() =>
-  import("@/pages/Overview").then((m) => ({ default: m.OverviewPage })),
+const SettingsPage = lazy(() =>
+  import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+);
+const SearchPage = lazy(() =>
+  import("@/pages/SearchPage").then((m) => ({ default: m.SearchPage })),
+);
+const ComparisonPage = lazy(() =>
+  import("@/pages/ComparisonPage").then((m) => ({ default: m.ComparisonPage })),
+);
+
+// Activity section
+const ActivitySection = lazy(() =>
+  import("@/pages/sections/ActivitySection").then((m) => ({
+    default: m.ActivitySection,
+  })),
 );
 const HeatmapPage = lazy(() =>
   import("@/pages/HeatmapPage").then((m) => ({ default: m.HeatmapPage })),
@@ -20,42 +37,50 @@ const HeatmapPage = lazy(() =>
 const TimelinePage = lazy(() =>
   import("@/pages/TimelinePage").then((m) => ({ default: m.TimelinePage })),
 );
-const ActivityPage = lazy(() =>
-  import("@/pages/ActivityPage").then((m) => ({ default: m.ActivityPage })),
+const PatternsPage = lazy(() =>
+  import("@/pages/PatternsPage").then((m) => ({ default: m.PatternsPage })),
 );
-const TagsPage = lazy(() =>
-  import("@/pages/TagsPage").then((m) => ({ default: m.TagsPage })),
+
+// Insights section
+const InsightsSection = lazy(() =>
+  import("@/pages/sections/InsightsSection").then((m) => ({
+    default: m.InsightsSection,
+  })),
 );
-const BranchesPage = lazy(() =>
-  import("@/pages/BranchesPage").then((m) => ({ default: m.BranchesPage })),
+const HotspotsPage = lazy(() =>
+  import("@/pages/HotspotsPage").then((m) => ({ default: m.HotspotsPage })),
+);
+const OwnershipPage = lazy(() =>
+  import("@/pages/OwnershipPage").then((m) => ({ default: m.OwnershipPage })),
 );
 const ContributorsPage = lazy(() =>
   import("@/pages/ContributorsPage").then((m) => ({
     default: m.ContributorsPage,
   })),
 );
+const MessagesPage = lazy(() =>
+  import("@/pages/MessagesPage").then((m) => ({ default: m.MessagesPage })),
+);
 const ContributorDetailPage = lazy(() =>
   import("@/pages/ContributorDetailPage").then((m) => ({
     default: m.ContributorDetailPage,
   })),
 );
-const OwnershipPage = lazy(() =>
-  import("@/pages/OwnershipPage").then((m) => ({ default: m.OwnershipPage })),
-);
-const SearchPage = lazy(() =>
-  import("@/pages/SearchPage").then((m) => ({ default: m.SearchPage })),
+
+// Graph section
+const GraphSection = lazy(() =>
+  import("@/pages/sections/GraphSection").then((m) => ({
+    default: m.GraphSection,
+  })),
 );
 const GraphPage = lazy(() =>
   import("@/pages/GraphPage").then((m) => ({ default: m.GraphPage })),
 );
-const HotspotsPage = lazy(() =>
-  import("@/pages/HotspotsPage").then((m) => ({ default: m.HotspotsPage })),
+const BranchesPage = lazy(() =>
+  import("@/pages/BranchesPage").then((m) => ({ default: m.BranchesPage })),
 );
-const ComparisonPage = lazy(() =>
-  import("@/pages/ComparisonPage").then((m) => ({ default: m.ComparisonPage })),
-);
-const SettingsPage = lazy(() =>
-  import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+const TagsPage = lazy(() =>
+  import("@/pages/TagsPage").then((m) => ({ default: m.TagsPage })),
 );
 
 const router = createBrowserRouter([
@@ -64,21 +89,54 @@ const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: "overview", element: <OverviewPage /> },
-      { path: "commits/:oid", element: <CommitDetailPage /> },
-      { path: "heatmap", element: <HeatmapPage /> },
-      { path: "timeline", element: <TimelinePage /> },
-      { path: "activity", element: <ActivityPage /> },
-      { path: "branches", element: <BranchesPage /> },
-      { path: "tags", element: <TagsPage /> },
-      { path: "contributors", element: <ContributorsPage /> },
-      { path: "contributors/:email", element: <ContributorDetailPage /> },
-      { path: "ownership", element: <OwnershipPage /> },
       { path: "search", element: <SearchPage /> },
-      { path: "graph", element: <GraphPage /> },
-      { path: "hotspots", element: <HotspotsPage /> },
-      { path: "comparison", element: <ComparisonPage /> },
+      { path: "compare", element: <ComparisonPage /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "commits/:oid", element: <CommitDetailPage /> },
+      { path: "contributors/:email", element: <ContributorDetailPage /> },
+
+      {
+        path: "activity",
+        element: <ActivitySection />,
+        children: [
+          { index: true, element: <Navigate to="heatmap" replace /> },
+          { path: "heatmap", element: <HeatmapPage /> },
+          { path: "timeline", element: <TimelinePage /> },
+          { path: "patterns", element: <PatternsPage /> },
+        ],
+      },
+      {
+        path: "insights",
+        element: <InsightsSection />,
+        children: [
+          { index: true, element: <Navigate to="hotspots" replace /> },
+          { path: "hotspots", element: <HotspotsPage /> },
+          { path: "ownership", element: <OwnershipPage /> },
+          { path: "authors", element: <ContributorsPage /> },
+          { path: "messages", element: <MessagesPage /> },
+        ],
+      },
+      {
+        path: "graph",
+        element: <GraphSection />,
+        children: [
+          { index: true, element: <Navigate to="dag" replace /> },
+          { path: "dag", element: <GraphPage /> },
+          { path: "branches", element: <BranchesPage /> },
+          { path: "releases", element: <TagsPage /> },
+        ],
+      },
+
+      // Backward-compat redirects
+      { path: "overview", element: <Navigate to="/activity" replace /> },
+      { path: "comparison", element: <Navigate to="/compare" replace /> },
+      { path: "heatmap", element: <Navigate to="/activity/heatmap" replace /> },
+      { path: "timeline", element: <Navigate to="/activity/timeline" replace /> },
+      { path: "branches", element: <Navigate to="/graph/branches" replace /> },
+      { path: "tags", element: <Navigate to="/graph/releases" replace /> },
+      { path: "contributors", element: <Navigate to="/insights/authors" replace /> },
+      { path: "ownership", element: <Navigate to="/insights/ownership" replace /> },
+      { path: "hotspots", element: <Navigate to="/insights/hotspots" replace /> },
     ],
   },
 ]);
