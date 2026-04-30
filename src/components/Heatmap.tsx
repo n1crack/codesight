@@ -1,7 +1,10 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+
+import { ChartTooltip } from "@/components/ChartTooltip";
+import { useChartTooltip } from "@/lib/useChartTooltip";
 import { cn } from "@/lib/utils";
-import type { HeatmapData } from "@/types";
+import type { HeatmapData, HeatmapDay } from "@/types";
 
 interface HeatmapProps {
   data: HeatmapData;
@@ -35,19 +38,20 @@ function levelOf(count: number, max: number): 0 | 1 | 2 | 3 | 4 {
 }
 
 const LEVEL_BG = [
-  "fill-[var(--heat-0)]",
-  "fill-[var(--heat-1)]",
-  "fill-[var(--heat-2)]",
-  "fill-[var(--heat-3)]",
-  "fill-[var(--heat-4)]",
+  "fill-[var(--color-heat-0)]",
+  "fill-[var(--color-heat-1)]",
+  "fill-[var(--color-heat-2)]",
+  "fill-[var(--color-heat-3)]",
+  "fill-[var(--color-heat-4)]",
 ];
 
 export function Heatmap({ data, className }: HeatmapProps) {
   const { t, i18n } = useTranslation();
-
   const lang = i18n.language?.startsWith("tr") ? "tr" : "en";
   const months = lang === "tr" ? MONTHS_TR : MONTHS_EN;
   const dayLabels = lang === "tr" ? DAYS_TR : DAYS_EN;
+
+  const tip = useChartTooltip<HeatmapDay>();
 
   const cells = useMemo(() => {
     if (data.days.length === 0) return [];
@@ -79,10 +83,29 @@ export function Heatmap({ data, className }: HeatmapProps) {
   const width = LEFT_PAD + totalWeeks * PITCH;
   const height = TOP_PAD + 7 * PITCH;
 
+  const tooltipText = tip.active
+    ? tip.active.count > 0
+      ? t("heatmap.commitsOn", {
+          count: tip.active.count,
+          date: tip.active.date,
+        })
+      : t("heatmap.noCommits", { date: tip.active.date })
+    : "";
+
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
+    <div
+      ref={tip.containerRef}
+      className={cn("relative flex select-none flex-col gap-2", className)}
+      onMouseMove={tip.onMouseMove}
+      onMouseLeave={tip.onMouseLeave}
+    >
       <div className="overflow-x-auto">
-        <svg width={width} height={height} role="img" aria-label={t("heatmap.title")}>
+        <svg
+          width={width}
+          height={height}
+          role="img"
+          aria-label={t("heatmap.title")}
+        >
           {monthLabels.map((m, i) => (
             <text
               key={`${m.month}-${i}`}
@@ -109,10 +132,6 @@ export function Heatmap({ data, className }: HeatmapProps) {
             const lvl = levelOf(c.count, data.max_count);
             const x = LEFT_PAD + c.week * PITCH;
             const y = TOP_PAD + c.dow * PITCH;
-            const tooltip =
-              c.count === 0
-                ? t("heatmap.noCommits", { date: c.date })
-                : t("heatmap.commitsOn", { count: c.count, date: c.date });
             return (
               <rect
                 key={c.date}
@@ -124,9 +143,8 @@ export function Heatmap({ data, className }: HeatmapProps) {
                 ry={2}
                 className={cn(LEVEL_BG[lvl], "stroke-border")}
                 strokeWidth={0.5}
-              >
-                <title>{tooltip}</title>
-              </rect>
+                onMouseEnter={(e) => tip.enter(c, e)}
+              />
             );
           })}
         </svg>
@@ -147,6 +165,9 @@ export function Heatmap({ data, className }: HeatmapProps) {
         ))}
         <span>{t("heatmap.more")}</span>
       </div>
+      <ChartTooltip ref={tip.tooltipRef} active={!!tip.active}>
+        {tooltipText}
+      </ChartTooltip>
     </div>
   );
 }
