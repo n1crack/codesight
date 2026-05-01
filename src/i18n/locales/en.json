@@ -58,6 +58,8 @@
     "scanModalAdding": "Adding…",
     "scanModalNewTag": "New tag",
     "emptyGroupHint": "Drop a repo here to assign this tag",
+    "dropNoRepoTitle": "No git repositories found",
+    "dropNoRepoBody": "The dropped folder(s) don't contain a .git directory.",
     "filterPlaceholder": "Filter repos or #tag…",
     "noMatch": "No repos match",
     "dragHint": "Drag to resize · double-click to reset",
@@ -446,6 +448,9 @@
   "health": {
     "title": "Repo health",
     "subtitle": "Composite score from six deterministic sub-scores",
+    "combinedHint": "Combined score from activity health + quality scan (each weighted 50%).",
+    "groupActivity": "Activity",
+    "groupQuality": "Quality",
     "outOf": "out of {{max}}",
     "labelExcellent": "Excellent",
     "labelGood": "Good",

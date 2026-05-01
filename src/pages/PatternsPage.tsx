@@ -225,10 +225,10 @@ function MatrixChart({
                 ry={2}
                 className={cn(
                   HEAT_LEVELS[lvl],
-                  "transition-[stroke,stroke-width] duration-100",
-                  isActive ? "stroke-foreground" : "stroke-border",
+                  "transition-[stroke] duration-150",
+                  isActive ? "stroke-foreground/40" : "stroke-border",
                 )}
-                strokeWidth={isActive ? 1.5 : 0.5}
+                strokeWidth={isActive ? 0.8 : 0.5}
                 onMouseEnter={(e) =>
                   tip.enter({ dow: d, hour: h, value: v }, e)
                 }
@@ -293,10 +293,8 @@ function BarsRow({
                 rx={3}
                 className={cn(
                   "fill-[var(--color-chart-1)] transition-opacity",
-                  isActive ? "opacity-100" : "opacity-70",
+                  isActive ? "opacity-100" : "opacity-80",
                 )}
-                stroke={isActive ? "var(--color-foreground)" : "none"}
-                strokeWidth={isActive ? 1.5 : 0}
                 onMouseEnter={(e) => tip.enter({ index: i, value: v }, e)}
                 onMouseLeave={() => tip.setActive(null)}
               />

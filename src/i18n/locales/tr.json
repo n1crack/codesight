@@ -58,6 +58,8 @@
     "scanModalAdding": "Ekleniyor…",
     "scanModalNewTag": "Yeni etiket",
     "emptyGroupHint": "Bu etikete depo atamak için sürükleyip bırak",
+    "dropNoRepoTitle": "Git deposu bulunamadı",
+    "dropNoRepoBody": "Bırakılan klasör(ler)de .git dizini yok.",
     "filterPlaceholder": "Depo filtrele veya #etiket…",
     "noMatch": "Eşleşen depo yok",
     "dragHint": "Sürükle ya da çift-tıklayıp sıfırla",
@@ -446,6 +448,9 @@
   "health": {
     "title": "Depo sağlığı",
     "subtitle": "Altı doğrudan ölçülen alt-skorun birleşimi",
+    "combinedHint": "Aktivite sağlığı + kalite taraması birleşik skor (her biri %50 ağırlıkta).",
+    "groupActivity": "Aktivite",
+    "groupQuality": "Kalite",
     "outOf": "/ {{max}}",
     "labelExcellent": "Mükemmel",
     "labelGood": "İyi",

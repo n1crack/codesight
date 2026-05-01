@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -8,7 +9,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { useAppState } from "@/state/AppState";
 import { cn } from "@/lib/utils";
-import type { HealthDetail, HealthSubScore, RepoHealth } from "@/types";
+import { scoreQuality, type QualitySubScores } from "@/lib/qualityScore";
+import type { HealthDetail, HealthSubScore } from "@/types";
 
 const SUB_KEY_TO_I18N: Record<string, string> = {
   recency: "health.subRecency",
@@ -17,6 +19,15 @@ const SUB_KEY_TO_I18N: Record<string, string> = {
   branches: "health.subBranches",
   docs: "health.subDocs",
   conventional: "health.subConventional",
+};
+
+const QUALITY_KEY_TO_I18N: Record<keyof QualitySubScores, string> = {
+  hygiene: "quality.groupHygiene",
+  secrets: "quality.groupSecretsHead",
+  dependencies: "quality.groupDependencies",
+  code: "quality.groupCode",
+  authorship: "quality.groupAuthorship",
+  total: "",
 };
 
 function formatHint(detail: HealthDetail, t: TFunction): string {
@@ -96,7 +107,12 @@ function ratioLabel(ratio: number, t: TFunction): string {
   return t("health.labelPoor");
 }
 
-function HealthGauge({ data }: { data: RepoHealth }) {
+interface CombinedScore {
+  score: number;
+  max: number;
+}
+
+function HealthGauge({ data }: { data: CombinedScore }) {
   const ratio = data.max > 0 ? data.score / data.max : 0;
   const size = 180;
   const stroke = 14;
@@ -145,22 +161,38 @@ function HealthGauge({ data }: { data: RepoHealth }) {
   );
 }
 
-function SubScoreRow({ s }: { s: HealthSubScore }) {
+function SubScoreRow({
+  label,
+  score,
+  max,
+  hint,
+  group,
+}: {
+  label: string;
+  score: number;
+  max: number;
+  hint?: string;
+  group?: string;
+}) {
   const { t } = useTranslation();
-  const ratio = s.max > 0 ? s.score / s.max : 0;
+  const ratio = max > 0 ? score / max : 0;
   const colors = ratioToColor(ratio);
-  const i18nKey = SUB_KEY_TO_I18N[s.key] ?? s.key;
   return (
     <li className="flex flex-col gap-1.5 py-3">
       <div className="flex items-baseline justify-between gap-2">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-medium">{t(i18nKey)}</span>
+          <span className="text-sm font-medium">{label}</span>
           <span className={cn("text-xs", colors.fg)}>
             {ratioLabel(ratio, t)}
           </span>
+          {group && (
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              {group}
+            </span>
+          )}
         </div>
         <span className="text-xs tabular-nums text-muted-foreground">
-          {s.score} / {s.max}
+          {Math.round(score)} / {max}
         </span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -169,7 +201,7 @@ function SubScoreRow({ s }: { s: HealthSubScore }) {
           style={{ width: `${Math.max(2, ratio * 100)}%` }}
         />
       </div>
-      <p className="text-xs text-muted-foreground">{formatHint(s.detail, t)}</p>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </li>
   );
 }
@@ -183,6 +215,31 @@ export function HealthPage() {
     queryFn: () => api.getRepoHealth(selectedRepoId!),
     enabled: selectedRepoId != null,
   });
+
+  const quality = useQuery({
+    queryKey: ["quality", selectedRepoId],
+    queryFn: () => api.runQualityScan(selectedRepoId!),
+    enabled: selectedRepoId != null,
+    staleTime: 5 * 60_000,
+  });
+
+  const qScores = useMemo(
+    () => (quality.data ? scoreQuality(quality.data) : null),
+    [quality.data],
+  );
+
+  const combined = useMemo<CombinedScore | null>(() => {
+    if (!health.data) return null;
+    if (!qScores) {
+      return { score: health.data.score, max: health.data.max };
+    }
+    const hRatio = health.data.score / Math.max(1, health.data.max);
+    const qRatio = qScores.total / 100;
+    return {
+      score: Math.round(((hRatio + qRatio) / 2) * 100),
+      max: 100,
+    };
+  }, [health.data, qScores]);
 
   if (selectedRepoId == null) {
     return (
@@ -201,19 +258,21 @@ export function HealthPage() {
           <CardContent className="flex flex-wrap items-center gap-8 p-6">
             {health.isPending ? (
               <Skeleton className="h-44 w-44 rounded-full" />
-            ) : health.data ? (
-              <HealthGauge data={health.data} />
+            ) : combined ? (
+              <HealthGauge data={combined} />
             ) : null}
-            {health.data && (
+            {combined && (
               <div className="min-w-[220px] flex-1">
                 <div className="text-sm font-medium">
                   {ratioLabel(
-                    health.data.score / Math.max(1, health.data.max),
+                    combined.score / Math.max(1, combined.max),
                     t,
                   )}
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {t("health.subtitle")}
+                  {qScores
+                    ? t("health.combinedHint")
+                    : t("health.subtitle")}
                 </p>
               </div>
             )}
@@ -235,9 +294,40 @@ export function HealthPage() {
               <p className="text-sm text-muted-foreground">{t("common.noData")}</p>
             ) : (
               <ul className="divide-y">
-                {health.data.subScores.map((s) => (
-                  <SubScoreRow key={s.key} s={s} />
-                ))}
+                {health.data.subScores.map((s: HealthSubScore) => {
+                  const i18nKey = SUB_KEY_TO_I18N[s.key] ?? s.key;
+                  return (
+                    <SubScoreRow
+                      key={`h-${s.key}`}
+                      label={t(i18nKey)}
+                      score={s.score}
+                      max={s.max}
+                      hint={formatHint(s.detail, t)}
+                      group={t("health.groupActivity")}
+                    />
+                  );
+                })}
+                {qScores && quality.data && (
+                  <>
+                    {(
+                      [
+                        "hygiene",
+                        "secrets",
+                        "dependencies",
+                        "code",
+                        "authorship",
+                      ] as const
+                    ).map((k) => (
+                      <SubScoreRow
+                        key={`q-${k}`}
+                        label={t(QUALITY_KEY_TO_I18N[k])}
+                        score={qScores[k]}
+                        max={20}
+                        group={t("health.groupQuality")}
+                      />
+                    ))}
+                  </>
+                )}
               </ul>
             )}
           </CardContent>

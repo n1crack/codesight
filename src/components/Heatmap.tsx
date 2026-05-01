@@ -144,12 +144,12 @@ export function Heatmap({ data, className }: HeatmapProps) {
                 ry={2}
                 className={cn(
                   LEVEL_BG[lvl],
-                  "transition-[stroke,stroke-width] duration-100",
+                  "transition-[stroke] duration-150",
                   isActive
-                    ? "stroke-foreground"
+                    ? "stroke-foreground/40"
                     : "stroke-border",
                 )}
-                strokeWidth={isActive ? 1.5 : 0.5}
+                strokeWidth={isActive ? 0.8 : 0.5}
                 onMouseEnter={(e) => tip.enter(c, e)}
                 onMouseLeave={() => tip.setActive(null)}
               />

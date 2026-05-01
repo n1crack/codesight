@@ -18,15 +18,36 @@ import {
   Settings,
   Trash2,
 } from "lucide-react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCorners,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+  type UniqueIdentifier,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import { api, pickRepositoryDir, pickScanRoot } from "@/api";
 import { ManageTagsButton, TagManager } from "@/components/TagManager";
 import { Sparkline } from "@/components/Sparkline";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
+import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useAppState } from "@/state/AppState";
-import { classesFor } from "@/lib/tagColors";
+import { TAG_COLORS, classesFor } from "@/lib/tagColors";
 import { cn } from "@/lib/utils";
 import type {
   DiscoveredRepo,
@@ -35,8 +56,6 @@ import type {
   TagColor,
   TagWithStats,
 } from "@/types";
-import { Input } from "@/components/ui/Input";
-import { TAG_COLORS } from "@/lib/tagColors";
 
 const GLOBAL_NAV = [
   { to: "/", icon: Home, key: "nav.home" },
@@ -56,20 +75,13 @@ const TOP_PANE_KEY = "codesight.sidebarTopPane";
 const TOP_PANE_MIN = 60;
 const TOP_PANE_MAX = 700;
 const COLLAPSED_GROUPS_KEY = "codesight.collapsedGroups";
-
-const DRAG_MIME = "application/x-codesight-repo";
+const UNTAGGED_KEY = "untagged";
 
 interface RepoGroup {
   key: string; // "tag-3" or "untagged"
   tag: Tag | null;
   label: string;
   repos: Repository[];
-}
-
-interface DragPayload {
-  repoId: number;
-  sourceGroupKey: string;
-  sourceTagId: number | null;
 }
 
 function useCollapsedGroups() {
@@ -107,8 +119,7 @@ function buildGroups(
   allTags: TagWithStats[],
   untaggedLabel: string,
 ): RepoGroup[] {
-  // Seed with every defined tag so empty groups still render as drop targets.
-  const groupMap = new Map<number, RepoGroup>();
+  const groupMap = new Map<string, RepoGroup>();
   for (const tg of allTags) {
     const tag: Tag = {
       id: tg.id,
@@ -116,7 +127,7 @@ function buildGroups(
       color: tg.color,
       sort_order: tg.sortOrder,
     };
-    groupMap.set(tg.id, {
+    groupMap.set(`tag-${tg.id}`, {
       key: `tag-${tg.id}`,
       tag,
       label: tg.name,
@@ -130,12 +141,13 @@ function buildGroups(
       untagged.push(r);
     } else {
       for (const tag of r.tags) {
-        const existing = groupMap.get(tag.id);
+        const key = `tag-${tag.id}`;
+        const existing = groupMap.get(key);
         if (existing) {
           existing.repos.push(r);
         } else {
-          groupMap.set(tag.id, {
-            key: `tag-${tag.id}`,
+          groupMap.set(key, {
+            key,
             tag,
             label: tag.name,
             repos: [r],
@@ -153,7 +165,7 @@ function buildGroups(
 
   if (untagged.length > 0 || allTags.length === 0) {
     groups.push({
-      key: "untagged",
+      key: UNTAGGED_KEY,
       tag: null,
       label: untaggedLabel,
       repos: untagged,
@@ -175,6 +187,7 @@ export function Sidebar() {
     folder: string;
     items: DiscoveredRepo[];
   } | null>(null);
+  const [noRepoDrop, setNoRepoDrop] = useState<string[] | null>(null);
   const topPaneRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [topPaneH, setTopPaneH] = useState<number | null>(() => {
@@ -190,6 +203,54 @@ export function Sidebar() {
       localStorage.setItem(TOP_PANE_KEY, String(topPaneH));
     }
   }, [topPaneH]);
+
+  // OS-level drag-drop: drop a folder onto the window to add/scan it.
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+        const webview = getCurrentWebview();
+        const fn = await webview.onDragDropEvent(async (event) => {
+          if (event.payload.type !== "drop") return;
+          const paths = event.payload.paths ?? [];
+          if (paths.length === 0) return;
+          const found: DiscoveredRepo[] = [];
+          for (const p of paths) {
+            try {
+              const items = await api.discoverRepos(p);
+              for (const it of items) found.push(it);
+            } catch {
+              // ignore per-path errors
+            }
+          }
+          const seen = new Set<string>();
+          const unique = found.filter((d) => {
+            if (seen.has(d.path)) return false;
+            seen.add(d.path);
+            return true;
+          });
+          if (unique.length === 0) {
+            setNoRepoDrop(paths);
+          } else {
+            setScanState({
+              folder: paths.length === 1 ? paths[0] : `${paths.length} folders`,
+              items: unique,
+            });
+          }
+        });
+        if (cancelled) fn();
+        else unlisten = fn;
+      } catch (err) {
+        console.warn("drag-drop listener failed", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   const startResize = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -331,12 +392,12 @@ export function Sidebar() {
     },
   });
 
-  const moveAndReorder = useMutation({
+  const persistMove = useMutation({
     mutationFn: async (vars: {
       repoId: number;
       addTagId: number | null;
       removeTagId: number | null;
-      orderedIds?: number[] | null;
+      orderedIds: number[] | null;
     }) => {
       if (vars.addTagId != null && vars.addTagId !== vars.removeTagId) {
         await api.assignTag(vars.repoId, vars.addTagId);
@@ -348,42 +409,75 @@ export function Sidebar() {
         await api.reorderRepositories(vars.orderedIds);
       }
     },
-    onSuccess: () => {
+    // Apply the move to the query cache synchronously so the UI does not
+    // snap back to the pre-drop state before the server round-trip lands.
+    // IMPORTANT: stay fully synchronous — an `await` here introduces a
+    // microtask boundary that breaks React 18's automatic batching with the
+    // drag-end state updates, causing a visible "snap back then forward"
+    // bounce after drop.
+    onMutate: (vars) => {
+      qc.cancelQueries({ queryKey: ["repositories"] });
+      const previousRepos = qc.getQueryData<Repository[]>(["repositories"]);
+      const tagsCache = qc.getQueryData<TagWithStats[]>(["repoTags"]);
+      if (!previousRepos) return { previousRepos };
+
+      let next = previousRepos.slice();
+      const idx = next.findIndex((r) => r.id === vars.repoId);
+      if (idx >= 0) {
+        const repo = next[idx];
+        let newTags = repo.tags;
+        if (vars.removeTagId != null) {
+          newTags = newTags.filter((t) => t.id !== vars.removeTagId);
+        }
+        if (
+          vars.addTagId != null &&
+          !newTags.some((t) => t.id === vars.addTagId)
+        ) {
+          const tagInfo = tagsCache?.find((t) => t.id === vars.addTagId);
+          if (tagInfo) {
+            newTags = [
+              ...newTags,
+              {
+                id: tagInfo.id,
+                name: tagInfo.name,
+                color: tagInfo.color,
+                sort_order: tagInfo.sortOrder,
+              },
+            ];
+          }
+        }
+        if (newTags !== repo.tags) {
+          next[idx] = { ...repo, tags: newTags };
+        }
+      }
+
+      if (vars.orderedIds && vars.orderedIds.length > 0) {
+        const byId = new Map(next.map((r) => [r.id, r]));
+        const reordered: Repository[] = [];
+        for (const id of vars.orderedIds) {
+          const r = byId.get(id);
+          if (r) reordered.push(r);
+        }
+        // Append any items not in orderedIds (shouldn't normally happen).
+        for (const r of next) {
+          if (!vars.orderedIds.includes(r.id)) reordered.push(r);
+        }
+        next = reordered;
+      }
+
+      qc.setQueryData<Repository[]>(["repositories"], next);
+      return { previousRepos };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previousRepos) {
+        qc.setQueryData(["repositories"], ctx.previousRepos);
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["repositories"] });
       qc.invalidateQueries({ queryKey: ["repoTags"] });
     },
   });
-
-  const handleDropOnGroup = (group: RepoGroup, payload: DragPayload) => {
-    if (payload.sourceGroupKey === group.key) return;
-    const target = group.tag?.id ?? null;
-    moveAndReorder.mutate({
-      repoId: payload.repoId,
-      addTagId: target,
-      removeTagId: payload.sourceTagId,
-    });
-  };
-
-  const handleDropOnRow = (
-    target: Repository,
-    targetTagId: number | null,
-    position: "before" | "after",
-    payload: DragPayload,
-  ) => {
-    if (payload.repoId === target.id) return;
-    const baseList = (repos.data ?? []).map((r) => r.id);
-    const filteredList = baseList.filter((id) => id !== payload.repoId);
-    let insertIdx = filteredList.indexOf(target.id);
-    if (insertIdx < 0) return;
-    if (position === "after") insertIdx += 1;
-    filteredList.splice(insertIdx, 0, payload.repoId);
-    moveAndReorder.mutate({
-      repoId: payload.repoId,
-      addTagId: targetTagId,
-      removeTagId: payload.sourceTagId,
-      orderedIds: filteredList,
-    });
-  };
 
   const all = repos.data ?? [];
   const showFilter = all.length >= FILTER_THRESHOLD;
@@ -405,6 +499,165 @@ export function Sidebar() {
     () => buildGroups(filtered, tagsQuery.data ?? [], t("sidebar.untagged")),
     [filtered, tagsQuery.data, t],
   );
+
+  // Optimistic local view of group → repo IDs. Overrides server while a drag
+  // is in progress. Synced from `groups` at render time when not dragging.
+  const [optimisticItems, setOptimisticItems] = useState<Record<
+    string,
+    number[]
+  > | null>(null);
+  const [activeId, setActiveId] = useState<number | null>(null);
+
+  const itemsByGroup = useMemo(() => {
+    if (optimisticItems) return optimisticItems;
+    const out: Record<string, number[]> = {};
+    for (const g of groups) out[g.key] = g.repos.map((r) => r.id);
+    return out;
+  }, [groups, optimisticItems]);
+
+  const repoById = useMemo(() => {
+    const map = new Map<number, Repository>();
+    for (const r of all) map.set(r.id, r);
+    return map;
+  }, [all]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
+
+  const findContainer = (id: UniqueIdentifier): string | null => {
+    const sid = String(id);
+    if (itemsByGroup[sid]) return sid; // dropped on a group container
+    for (const [key, ids] of Object.entries(itemsByGroup)) {
+      if (ids.includes(Number(id))) return key;
+    }
+    return null;
+  };
+
+  const handleDragStart = (e: DragStartEvent) => {
+    setActiveId(Number(e.active.id));
+  };
+
+  const handleDragOver = (e: DragOverEvent) => {
+    const { active, over } = e;
+    if (!over) return;
+    const fromKey = findContainer(active.id);
+    const toKey = findContainer(over.id);
+    if (!fromKey || !toKey || fromKey === toKey) return;
+
+    setOptimisticItems((prev) => {
+      const base = prev ?? itemsByGroup;
+      const fromList = (base[fromKey] ?? []).slice();
+      const toList = (base[toKey] ?? []).slice();
+      const movingId = Number(active.id);
+      const fromIdx = fromList.indexOf(movingId);
+      if (fromIdx < 0) return prev;
+      fromList.splice(fromIdx, 1);
+
+      let insertIdx = toList.length;
+      if (String(over.id) !== toKey) {
+        const overIdx = toList.indexOf(Number(over.id));
+        if (overIdx >= 0) insertIdx = overIdx;
+      }
+      toList.splice(insertIdx, 0, movingId);
+
+      return {
+        ...base,
+        [fromKey]: fromList,
+        [toKey]: toList,
+      };
+    });
+  };
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    setActiveId(null);
+    const snapshot = optimisticItems;
+    setOptimisticItems(null);
+
+    if (!over) return;
+
+    const movingId = Number(active.id);
+    const repo = repoById.get(movingId);
+    if (!repo) return;
+
+    // The current state during drag includes any cross-group moves done in
+    // dragOver. We figure out final container + position from the snapshot
+    // (or live data if no drag-over fired).
+    const stateAtDrop = snapshot ?? itemsByGroup;
+    let toKey: string | null = null;
+    for (const [key, ids] of Object.entries(stateAtDrop)) {
+      if (ids.includes(movingId)) {
+        toKey = key;
+        break;
+      }
+    }
+    if (!toKey) return;
+
+    // Reorder within the same container if the drop target was a sibling.
+    let finalItems = stateAtDrop;
+    if (String(over.id) !== toKey) {
+      const list = stateAtDrop[toKey] ?? [];
+      const oldIdx = list.indexOf(movingId);
+      const newIdx = list.indexOf(Number(over.id));
+      if (oldIdx >= 0 && newIdx >= 0 && oldIdx !== newIdx) {
+        const reordered = arrayMove(list, oldIdx, newIdx);
+        finalItems = { ...stateAtDrop, [toKey]: reordered };
+      }
+    }
+
+    // Determine source tag from current server data (groups, not optimistic).
+    const sourceGroup = groups.find((g) =>
+      g.repos.some((r) => r.id === movingId),
+    );
+    const sourceTagId = sourceGroup?.tag?.id ?? null;
+    const targetTagId =
+      toKey === UNTAGGED_KEY
+        ? null
+        : Number(toKey.replace(/^tag-/, "")) || null;
+
+    // Build global ordered ID list across all groups, keeping group display
+    // order. Repos may appear in multiple tag groups — dedupe by first
+    // occurrence to avoid duplicate sort_order writes.
+    const seen = new Set<number>();
+    const orderedIds: number[] = [];
+    for (const g of groups) {
+      const list = finalItems[g.key] ?? g.repos.map((r) => r.id);
+      for (const id of list) {
+        if (!seen.has(id)) {
+          seen.add(id);
+          orderedIds.push(id);
+        }
+      }
+    }
+
+    const sameContainer = sourceGroup?.key === toKey;
+    const sameOrder = (() => {
+      const before = groups
+        .flatMap((g) => g.repos.map((r) => r.id))
+        .filter((id, i, arr) => arr.indexOf(id) === i);
+      return (
+        before.length === orderedIds.length &&
+        before.every((id, i) => id === orderedIds[i])
+      );
+    })();
+
+    if (sameContainer && sameOrder) return; // nothing changed
+
+    persistMove.mutate({
+      repoId: movingId,
+      addTagId: sameContainer ? null : targetTagId,
+      removeTagId: sameContainer ? null : sourceTagId,
+      orderedIds: sameOrder ? null : orderedIds,
+    });
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setOptimisticItems(null);
+  };
+
+  const activeRepo = activeId != null ? repoById.get(activeId) ?? null : null;
 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
@@ -560,20 +813,47 @@ export function Sidebar() {
             {t("sidebar.noMatch")}
           </p>
         )}
-        {groups.map((group) => (
-          <RepoGroupView
-            key={group.key}
-            group={group}
-            collapsed={collapsed.has(group.key)}
-            onToggle={() => toggle(group.key)}
-            selectedRepoId={selectedRepoId}
-            onRepoClick={onRepoClick}
-            onRepoRemove={(r) => setRemoveTarget(r)}
-            onDropOnGroup={handleDropOnGroup}
-            onDropOnRow={handleDropOnRow}
-            sparkByRepo={sparkByRepo}
-          />
-        ))}
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          {groups.map((group) => {
+            const ids = itemsByGroup[group.key] ?? group.repos.map((r) => r.id);
+            return (
+              <DndGroupView
+                key={group.key}
+                group={group}
+                itemIds={ids}
+                collapsed={collapsed.has(group.key)}
+                onToggle={() => toggle(group.key)}
+                selectedRepoId={selectedRepoId}
+                onRepoClick={onRepoClick}
+                onRepoRemove={(r) => setRemoveTarget(r)}
+                repoById={repoById}
+                sparkByRepo={sparkByRepo}
+                isDragging={activeId != null}
+              />
+            );
+          })}
+          {/* dropAnimation={null} removes @dnd-kit's "fly back to source"
+              animation. Otherwise the overlay animates from drop-point to
+              the rendered source slot — and if the cache update is even one
+              frame late, that slot is the OLD position, producing a bounce
+              effect after drop. */}
+          <DragOverlay dropAnimation={null}>
+            {activeRepo ? (
+              <RepoRowGhost
+                repo={activeRepo}
+                days={sparkByRepo.get(activeRepo.id)}
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
 
       <TagManager
@@ -610,73 +890,100 @@ export function Sidebar() {
           return tag.id;
         }}
       />
+
+      <Dialog
+        open={noRepoDrop != null}
+        onClose={() => setNoRepoDrop(null)}
+        title={t("sidebar.dropNoRepoTitle")}
+        description={t("sidebar.dropNoRepoBody")}
+        size="sm"
+        footer={
+          <Button size="sm" onClick={() => setNoRepoDrop(null)}>
+            {t("common.ok")}
+          </Button>
+        }
+      >
+        {noRepoDrop && noRepoDrop.length > 0 && (
+          <ul className="max-h-40 space-y-1 overflow-y-auto rounded-md border bg-muted/30 p-2 text-[11px]">
+            {noRepoDrop.map((p) => (
+              <li key={p} className="truncate font-mono">
+                {p}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Dialog>
     </aside>
   );
 }
 
-function RepoGroupView({
+function RepoRowGhost({
+  repo,
+  days,
+}: {
+  repo: Repository;
+  days?: number[];
+}) {
+  const total = days?.reduce((a, b) => a + b, 0) ?? 0;
+  return (
+    <div className="w-60 cursor-grabbing rounded-md border bg-popover px-2 py-1.5 text-popover-foreground shadow-2xl ring-1 ring-primary/40">
+      <div className="flex items-center gap-1.5">
+        <FolderGit2 size={13} className="shrink-0 text-primary" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+          {repo.name}
+        </span>
+      </div>
+      {days && (
+        <div className="mt-1 flex items-center gap-1.5 pl-[18px]">
+          <Sparkline
+            values={days}
+            width={104}
+            height={16}
+            className={cn(
+              total > 0 ? "text-foreground/80" : "text-muted-foreground/60",
+            )}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DndGroupView({
   group,
+  itemIds,
   collapsed,
   onToggle,
   selectedRepoId,
   onRepoClick,
   onRepoRemove,
-  onDropOnGroup,
-  onDropOnRow,
+  repoById,
   sparkByRepo,
+  isDragging,
 }: {
   group: RepoGroup;
+  itemIds: number[];
   collapsed: boolean;
   onToggle: () => void;
   selectedRepoId: number | null;
   onRepoClick: (id: number) => void;
   onRepoRemove: (r: Repository) => void;
-  onDropOnGroup: (group: RepoGroup, payload: DragPayload) => void;
-  onDropOnRow: (
-    target: Repository,
-    targetTagId: number | null,
-    position: "before" | "after",
-    payload: DragPayload,
-  ) => void;
+  repoById: Map<number, Repository>;
   sparkByRepo: Map<number, number[]>;
+  isDragging: boolean;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const cls = group.tag ? classesFor(group.tag.color) : null;
-  const [isDropTarget, setIsDropTarget] = useState(false);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    if (!Array.from(e.dataTransfer.types).includes(DRAG_MIME)) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setIsDropTarget(true);
-  };
-  const handleDragLeave = (e: React.DragEvent) => {
-    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-    setIsDropTarget(false);
-  };
-  const handleDrop = (e: React.DragEvent) => {
-    setIsDropTarget(false);
-    const raw = e.dataTransfer.getData(DRAG_MIME);
-    if (!raw) return;
-    e.preventDefault();
-    try {
-      const payload = JSON.parse(raw) as DragPayload;
-      onDropOnGroup(group, payload);
-    } catch {
-      // ignore
-    }
-  };
+  const { setNodeRef, isOver } = useDroppable({ id: group.key });
 
   return (
     <div
+      ref={setNodeRef}
       className={cn(
         "mb-1 rounded-md transition-colors",
-        isDropTarget && "bg-primary/10 ring-1 ring-primary/40",
+        isOver && isDragging && "bg-primary/10 ring-1 ring-primary/40",
       )}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
     >
       <div className="group flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-sidebar-accent/30">
         <button
@@ -720,149 +1027,117 @@ function RepoGroupView({
             {group.label}
           </span>
           <span className="text-[10px] tabular-nums text-muted-foreground">
-            {group.repos.length}
+            {itemIds.length}
           </span>
         </button>
       </div>
       {!collapsed && (
-        <ul className="mt-0.5 flex flex-col gap-0.5 pl-2">
-          {group.repos.length === 0 && (
-            <li className="px-2 py-1 text-[11px] italic text-muted-foreground/70">
-              {t("sidebar.emptyGroupHint")}
-            </li>
-          )}
-          {group.repos.map((r) => (
-            <RepoRow
-              key={`${group.key}-${r.id}`}
-              repo={r}
-              groupKey={group.key}
-              groupTagId={group.tag?.id ?? null}
-              isActive={r.id === selectedRepoId}
-              onClick={() => onRepoClick(r.id)}
-              onRemove={() => onRepoRemove(r)}
-              onDropAt={(payload, position) =>
-                onDropOnRow(r, group.tag?.id ?? null, position, payload)
-              }
-              days={sparkByRepo.get(r.id)}
-              t={t}
-            />
-          ))}
-        </ul>
+        <SortableContext
+          items={itemIds}
+          strategy={verticalListSortingStrategy}
+        >
+          <ul className="mt-0.5 flex flex-col gap-0.5 pl-2">
+            {itemIds.length === 0 && (
+              <li className="px-2 py-1 text-[11px] italic text-muted-foreground/70">
+                {t("sidebar.emptyGroupHint")}
+              </li>
+            )}
+            {itemIds.map((id) => {
+              const r = repoById.get(id);
+              if (!r) return null;
+              return (
+                <SortableRepoRow
+                  key={`${group.key}-${id}`}
+                  repo={r}
+                  isActive={r.id === selectedRepoId}
+                  onClick={() => onRepoClick(r.id)}
+                  onRemove={() => onRepoRemove(r)}
+                  days={sparkByRepo.get(r.id)}
+                />
+              );
+            })}
+          </ul>
+        </SortableContext>
       )}
     </div>
   );
 }
 
-function RepoRow({
+function SortableRepoRow({
   repo,
-  groupKey,
-  groupTagId,
   isActive,
   onClick,
   onRemove,
-  onDropAt,
   days,
-  t,
 }: {
   repo: Repository;
-  groupKey: string;
-  groupTagId: number | null;
   isActive: boolean;
   onClick: () => void;
   onRemove: () => void;
-  onDropAt: (payload: DragPayload, position: "before" | "after") => void;
   days?: number[];
-  t: (k: string, opts?: Record<string, unknown>) => string;
 }) {
+  const { t } = useTranslation();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: repo.id });
   const total = days?.reduce((a, b) => a + b, 0) ?? 0;
   const sparkTitle = total
     ? t("sparkline.last30Days", { count: total })
     : t("sparkline.noActivity");
-  const [isDragging, setIsDragging] = useState(false);
-  const [dropEdge, setDropEdge] = useState<"top" | "bottom" | null>(null);
 
-  const handleDragStart = (e: React.DragEvent) => {
-    const payload: DragPayload = {
-      repoId: repo.id,
-      sourceGroupKey: groupKey,
-      sourceTagId: groupTagId,
-    };
-    e.dataTransfer.setData(DRAG_MIME, JSON.stringify(payload));
-    e.dataTransfer.effectAllowed = "move";
-    setIsDragging(true);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    if (!Array.from(e.dataTransfer.types).includes(DRAG_MIME)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = "move";
-    const rect = e.currentTarget.getBoundingClientRect();
-    const midY = rect.top + rect.height / 2;
-    setDropEdge(e.clientY < midY ? "top" : "bottom");
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-    setDropEdge(null);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    const raw = e.dataTransfer.getData(DRAG_MIME);
-    setDropEdge(null);
-    if (!raw) return;
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      const payload = JSON.parse(raw) as DragPayload;
-      if (payload.repoId === repo.id) return;
-      onDropAt(payload, dropEdge === "top" ? "before" : "after");
-    } catch {
-      // ignore
-    }
-  };
+  // While dragging, hide the source row visually (DragOverlay shows the
+  // ghost) and follow the cursor on the Y axis only — keeps the slot moving
+  // with the pointer so other items can flow around it, without ever
+  // producing a horizontal scrollbar.
+  const style: React.CSSProperties = isDragging
+    ? {
+        transform: transform
+          ? `translate3d(0, ${transform.y}px, 0)`
+          : undefined,
+        transition,
+        opacity: 0,
+      }
+    : {
+        transform: CSS.Transform.toString(transform),
+        transition,
+      };
 
   return (
     <li
-      className={cn("group/row relative", isDragging && "opacity-40")}
-      draggable
-      onDragStart={handleDragStart}
-      onDragEnd={() => {
-        setIsDragging(false);
-        setDropEdge(null);
-      }}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      ref={setNodeRef}
+      style={style}
+      className="group/row relative"
     >
-      {dropEdge === "top" && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-1 -top-px h-0.5 rounded-full bg-primary"
-        />
-      )}
-      {dropEdge === "bottom" && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-primary"
-        />
-      )}
       {isActive && (
         <span
           aria-hidden
           className="pointer-events-none absolute inset-y-1 left-0 z-10 w-0.5 rounded-full bg-primary"
         />
       )}
-      <button
-        type="button"
-        onClick={onClick}
-        title={repo.path}
+      <div
+        {...attributes}
+        {...listeners}
         className={cn(
-          "block w-full rounded-md px-2 py-1.5 text-left transition-colors",
+          "block w-full cursor-grab rounded-md px-2 py-1.5 text-left transition-colors active:cursor-grabbing",
           isActive
             ? "bg-sidebar-accent text-sidebar-accent-foreground"
             : "hover:bg-sidebar-accent/50",
         )}
+        title={repo.path}
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick();
+          }
+        }}
       >
         <div className="flex items-center gap-1.5">
           <FolderGit2
@@ -902,11 +1177,13 @@ function RepoRow({
             </span>
           </div>
         )}
-      </button>
+      </div>
       <button
         type="button"
         aria-label={t("sidebar.remove")}
         title={t("sidebar.remove")}
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
           onRemove();
