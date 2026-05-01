@@ -179,3 +179,12 @@
     background-color: oklch(1 0 0 / 38%);
   }
 }
+
+@keyframes progressSlide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}

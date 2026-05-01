@@ -5,7 +5,14 @@ mod repo;
 
 use std::sync::Arc;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ScanProgress {
+    scanned: u32,
+    total: u32,
+}
 
 use crate::analysis::{
     get_activity_patterns_impl, get_code_churn_impl, get_commit_detail_impl,
@@ -18,12 +25,13 @@ use crate::analysis::{
     get_global_recent_commits_impl, get_global_summary_impl, get_language_breakdown_impl,
     get_ownership_report_impl, get_recent_commits_impl, get_repo_health_impl,
     get_repo_summary_impl, get_repos_sparklines_impl, get_top_contributors_impl,
-    list_branches_impl, list_known_authors_impl, list_tags_impl, run_quality_scan_impl,
-    search_commits_impl, ActivityPatterns, AuthorSpecialization, BranchInfo, ChurnPoint,
-    ChurnRiskFile, CoauthorPair, CommitDetail, CommitInfo, CommitMessageStats, Contributor,
-    ContributorCohortPoint, ContributorDetail, DirectoryHotspot, FileCoupling, FileHotspot,
-    GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData, LanguageStat, OwnershipReport,
-    QualityReport, RepoHealth, RepoSparkline, RepoSummary, SearchParams, TagInfo, TimelinePoint,
+    list_branches_impl, list_known_authors_impl, list_tags_impl, run_history_secret_scan_impl,
+    run_quality_scan_impl, search_commits_impl, ActivityPatterns, AuthorSpecialization,
+    BranchInfo, ChurnPoint, ChurnRiskFile, CoauthorPair, CommitDetail, CommitInfo,
+    CommitMessageStats, Contributor, ContributorCohortPoint, ContributorDetail, DirectoryHotspot,
+    FileCoupling, FileHotspot, GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData,
+    HistorySecretReport, LanguageStat, OwnershipReport, QualityReport, RepoHealth, RepoSparkline,
+    RepoSummary, SearchParams, TagInfo, TimelinePoint,
 };
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
@@ -502,6 +510,26 @@ async fn run_quality_scan(
 }
 
 #[tauri::command]
+async fn run_history_secret_scan(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    id: i64,
+) -> AppResult<HistorySecretReport> {
+    let db = state.db.clone();
+    let app_for_progress = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        run_history_secret_scan_impl(&db, id, move |scanned, total| {
+            let _ = app_for_progress.emit(
+                "scan-progress",
+                ScanProgress { scanned, total },
+            );
+        })
+    })
+    .await
+    .unwrap()
+}
+
+#[tauri::command]
 async fn get_file_couplings(
     state: tauri::State<'_, AppState>,
     id: i64,
@@ -591,6 +619,7 @@ pub fn run() {
             get_coauthor_pairs,
             get_author_specialization,
             run_quality_scan,
+            run_history_secret_scan,
             scan_folder,
             get_repo_summary,
             get_commit_heatmap,

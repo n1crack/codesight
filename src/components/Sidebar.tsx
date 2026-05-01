@@ -560,84 +560,75 @@ function RepoRow({
     ? t("sparkline.last30Days", { count: total })
     : t("sparkline.noActivity");
   return (
-    <li className="relative">
+    <li className="group/row relative">
       {isActive && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary"
+          className="pointer-events-none absolute inset-y-1 left-0 z-10 w-0.5 rounded-full bg-primary"
         />
       )}
-      <div
+      <button
+        type="button"
+        onClick={onClick}
+        title={repo.path}
         className={cn(
-          "group rounded-md transition-colors",
+          "block w-full rounded-md px-2 py-1.5 text-left transition-colors",
           isActive
             ? "bg-sidebar-accent text-sidebar-accent-foreground"
             : "hover:bg-sidebar-accent/50",
         )}
       >
-        <div className="block w-full px-2 py-1.5 text-left">
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={onClick}
-              title={repo.path}
-              className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-            >
-              <FolderGit2
-                size={13}
-                className={cn(
-                  "shrink-0",
-                  isActive ? "text-primary" : "text-muted-foreground",
-                )}
-              />
-              <span
-                className={cn(
-                  "min-w-0 flex-1 truncate text-sm",
-                  isActive ? "font-medium" : "",
-                )}
-              >
-                {repo.name}
-              </span>
-            </button>
-            <button
-              type="button"
-              aria-label={t("sidebar.remove")}
-              title={t("sidebar.remove")}
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-              className="hidden h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/15 hover:text-destructive group-hover:flex"
-            >
-              <Trash2 size={11} />
-            </button>
-          </div>
-          {days && (
-            <button
-              type="button"
-              onClick={onClick}
-              className="mt-1 flex items-center gap-1.5 pl-[18px]"
-            >
-              <Sparkline
-                values={days}
-                width={104}
-                height={16}
-                title={sparkTitle}
-                className={cn(
-                  isActive
-                    ? "text-primary"
-                    : total > 0
-                      ? "text-foreground/80 group-hover:text-foreground"
-                      : "text-muted-foreground/60",
-                )}
-              />
-              <span className="text-[10px] tabular-nums text-muted-foreground">
-                {total ? t("sidebar.last30Suffix", { count: total }) : "—"}
-              </span>
-            </button>
-          )}
+        <div className="flex items-center gap-1.5">
+          <FolderGit2
+            size={13}
+            className={cn(
+              "shrink-0",
+              isActive ? "text-primary" : "text-muted-foreground",
+            )}
+          />
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-sm",
+              isActive && "font-medium",
+            )}
+          >
+            {repo.name}
+          </span>
+          <span className="w-5 shrink-0" aria-hidden />
         </div>
-      </div>
+        {days && (
+          <div className="mt-1 flex items-center gap-1.5 pl-[18px]">
+            <Sparkline
+              values={days}
+              width={104}
+              height={16}
+              title={sparkTitle}
+              className={cn(
+                isActive
+                  ? "text-primary"
+                  : total > 0
+                    ? "text-foreground/80 group-hover/row:text-foreground"
+                    : "text-muted-foreground/60",
+              )}
+            />
+            <span className="text-[10px] tabular-nums text-muted-foreground">
+              {total ? t("sidebar.last30Suffix", { count: total }) : "—"}
+            </span>
+          </div>
+        )}
+      </button>
+      <button
+        type="button"
+        aria-label={t("sidebar.remove")}
+        title={t("sidebar.remove")}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        className="absolute right-2 top-1.5 hidden h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-destructive/15 hover:text-destructive group-hover/row:flex"
+      >
+        <Trash2 size={11} />
+      </button>
     </li>
   );
 }

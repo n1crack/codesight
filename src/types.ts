@@ -268,12 +268,117 @@ export interface TodoHit {
   text: string;
 }
 
-export interface QualityReport {
-  secrets: SecretHit[];
-  riskyFiles: RiskyFile[];
+export interface PresenceCheck {
+  present: boolean;
+  path: string | null;
+}
+
+export interface GitignoreCoverage {
+  envFiles: boolean;
+  nodeModules: boolean;
+  target: boolean;
+  distBuild: boolean;
+  ide: boolean;
+  osFiles: boolean;
+}
+
+export interface GitignoreCheck {
+  present: boolean;
+  path: string | null;
+  lineCount: number;
+  covers: GitignoreCoverage;
+}
+
+export interface RepoHygieneReport {
+  gitignore: GitignoreCheck;
+  license: PresenceCheck;
+  readme: PresenceCheck;
+  contributing: PresenceCheck;
+  securityMd: PresenceCheck;
+  codeOfConduct: PresenceCheck;
+  editorconfig: PresenceCheck;
+  ciConfig: PresenceCheck;
+}
+
+export interface DepManifest {
+  kind: string;
+  manifestPath: string;
+  lockfilePath: string | null;
+}
+
+export interface DependenciesReport {
+  manifests: DepManifest[];
+}
+
+export interface ConflictHit {
+  path: string;
+  line: number;
+}
+
+export interface GeneratedFile {
+  path: string;
+  reason: string;
+}
+
+export interface LargeFile {
+  path: string;
+  sizeBytes: number;
+}
+
+export interface CodeHygieneReport {
   todos: TodoHit[];
   todoCount: number;
+  conflictMarkers: ConflictHit[];
+  generatedFiles: GeneratedFile[];
+  largeFiles: LargeFile[];
+}
+
+export interface AuthorshipReport {
+  totalCommits: number;
+  botCommits: number;
+  botSharePct: number;
+  signedCommits: number;
+  signedSharePct: number;
+  genericEmailAuthors: string[];
+}
+
+export interface SecretsHeadReport {
+  hits: SecretHit[];
+  riskyFiles: RiskyFile[];
+}
+
+export interface QualityReport {
+  repoHygiene: RepoHygieneReport;
+  secretsHead: SecretsHeadReport;
+  dependencies: DependenciesReport;
+  codeHygiene: CodeHygieneReport;
+  authorship: AuthorshipReport;
   filesScanned: number;
+}
+
+export interface HistorySecretHit {
+  blobOid: string;
+  commitOid: string;
+  commitShortId: string;
+  commitDate: string;
+  authorName: string;
+  authorEmail: string;
+  path: string;
+  line: number;
+  patternName: string;
+  severity: string;
+  masked: string;
+}
+
+export interface HistorySecretReport {
+  hits: HistorySecretHit[];
+  commitsScanned: number;
+  blobsScanned: number;
+}
+
+export interface ScanProgress {
+  scanned: number;
+  total: number;
 }
 
 export interface GraphRef {

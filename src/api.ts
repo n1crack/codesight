@@ -24,6 +24,7 @@ import type {
   GlobalSummary,
   GraphCommit,
   HeatmapData,
+  HistorySecretReport,
   LanguageStat,
   OwnershipReport,
   QualityReport,
@@ -142,6 +143,8 @@ export const api = {
     invoke<AuthorSpecialization>("get_author_specialization", { id, email }),
   runQualityScan: (id: number) =>
     invoke<QualityReport>("run_quality_scan", { id }),
+  runHistorySecretScan: (id: number) =>
+    invoke<HistorySecretReport>("run_history_secret_scan", { id }),
   getFileCouplings: (id: number, limit: number, since?: string | null) =>
     invoke<FileCoupling[]>("get_file_couplings", {
       id,

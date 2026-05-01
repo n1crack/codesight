@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Calendar, RotateCw, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Calendar, FolderGit2, RotateCw, Search } from "lucide-react";
 
 import { api } from "@/api";
 import { Select } from "@/components/ui/Select";
 import { useAppState } from "@/state/AppState";
+import { classesFor } from "@/lib/tagColors";
 import { cn } from "@/lib/utils";
 import type { DateRangePreset } from "@/state/AppState";
 
@@ -16,8 +18,15 @@ const isMac =
 export function AppTopBar() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { selectedRepoId, dateRange, setDateRange } = useAppState();
   const [spinning, setSpinning] = useState(false);
+
+  const repos = useQuery({
+    queryKey: ["repositories"],
+    queryFn: api.listRepositories,
+  });
+  const selectedRepo = repos.data?.find((r) => r.id === selectedRepoId) ?? null;
 
   useEffect(() => {
     if (!spinning) return;
@@ -51,7 +60,52 @@ export function AppTopBar() {
   ];
 
   return (
-    <div className="flex h-9 shrink-0 items-center justify-end gap-2 border-b bg-background/60 px-3 backdrop-blur">
+    <div className="flex h-9 shrink-0 items-center gap-2 border-b bg-background/60 px-3 backdrop-blur">
+      <div className="flex min-w-0 flex-1 items-center">
+        {selectedRepo ? (
+          <button
+            type="button"
+            onClick={() => navigate("/activity")}
+            title={selectedRepo.path}
+            className="group flex min-w-0 max-w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-accent"
+          >
+            <FolderGit2
+              size={13}
+              className="shrink-0 text-primary"
+              aria-hidden
+            />
+            <span className="min-w-0 truncate text-sm font-semibold">
+              {selectedRepo.name}
+            </span>
+            {selectedRepo.tags.length > 0 && (
+              <span className="hidden shrink-0 items-center gap-1 sm:flex">
+                {selectedRepo.tags.slice(0, 3).map((tag) => {
+                  const cls = classesFor(tag.color);
+                  return (
+                    <span
+                      key={tag.id}
+                      className={cn(
+                        "rounded px-1 py-0.5 text-[10px] font-medium",
+                        cls.bg,
+                        cls.text,
+                      )}
+                    >
+                      {tag.name}
+                    </span>
+                  );
+                })}
+              </span>
+            )}
+            <span className="hidden truncate text-[11px] text-muted-foreground/80 md:inline">
+              {selectedRepo.path}
+            </span>
+          </button>
+        ) : (
+          <span className="px-2 py-1 text-xs text-muted-foreground">
+            {t("common.selectRepo")}
+          </span>
+        )}
+      </div>
       <div
         className="flex items-center gap-1.5"
         title={t("topbar.dateRange")}

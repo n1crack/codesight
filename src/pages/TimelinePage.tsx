@@ -127,7 +127,17 @@ export function TimelinePage() {
             </CardTitle>
             {metric === "velocity" && (
               <div className="text-xs text-muted-foreground">
-                {t("timeline.velocityHint")}
+                {t("timeline.velocityHint", {
+                  period: t(
+                    `timeline.velocityPeriod${
+                      granularity === "day"
+                        ? "Day"
+                        : granularity === "week"
+                          ? "Week"
+                          : "Month"
+                    }`,
+                  ),
+                })}
               </div>
             )}
           </CardHeader>
@@ -194,7 +204,11 @@ export function TimelinePage() {
                             ? t("timeline.additions")
                             : name === "deletions"
                               ? t("timeline.deletions")
-                              : t("timeline.commits");
+                              : name === "velocity"
+                                ? t("timeline.velocityAvg")
+                                : metric === "velocity"
+                                  ? t("timeline.velocityRaw")
+                                  : t("timeline.commits");
                         return [v, label];
                       }}
                     />
@@ -213,19 +227,20 @@ export function TimelinePage() {
                         <Area
                           type="monotone"
                           dataKey="count"
-                          name={t("timeline.commits")}
-                          stroke="var(--color-chart-2)"
-                          fill="var(--color-chart-2)"
-                          fillOpacity={0.15}
+                          name={t("timeline.velocityRaw")}
+                          stroke="var(--color-muted-foreground)"
+                          fill="var(--color-muted-foreground)"
+                          fillOpacity={0.08}
                           strokeWidth={1}
+                          strokeDasharray="3 3"
                         />
                         <Area
                           type="monotone"
                           dataKey="velocity"
-                          name={t("timeline.velocity")}
+                          name={t("timeline.velocityAvg")}
                           stroke="var(--color-chart-1)"
                           fill="url(#commitFill)"
-                          strokeWidth={2.5}
+                          strokeWidth={3}
                         />
                       </>
                     )}
