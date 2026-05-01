@@ -98,7 +98,7 @@ export function PatternsPage() {
         }
       />
       <div className="flex flex-col gap-4 p-6">
-        <Card>
+        <Card className="transition-shadow hover:shadow-md">
           <CardHeader>
             <CardTitle>{t("activity.matrix")}</CardTitle>
           </CardHeader>
@@ -120,7 +120,7 @@ export function PatternsPage() {
         </Card>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card>
+          <Card className="transition-shadow hover:shadow-md">
             <CardHeader>
               <CardTitle>{t("activity.hourOfDay")}</CardTitle>
             </CardHeader>
@@ -136,7 +136,7 @@ export function PatternsPage() {
               ) : null}
             </CardContent>
           </Card>
-          <Card>
+          <Card className="transition-shadow hover:shadow-md">
             <CardHeader>
               <CardTitle>{t("activity.dayOfWeek")}</CardTitle>
             </CardHeader>

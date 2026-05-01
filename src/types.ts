@@ -32,6 +32,11 @@ export interface Repository {
   tags: Tag[];
 }
 
+export interface DiscoveredRepo {
+  path: string;
+  name: string;
+}
+
 export interface RepoSummary {
   repo: Repository;
   total_commits: number;

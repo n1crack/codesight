@@ -36,9 +36,10 @@ use crate::analysis::{
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
 use crate::repo::{
-    add_repository_impl, assign_tag_impl, create_tag_impl, delete_tag_impl,
-    list_repositories_impl, list_tags_with_stats_impl, remove_repository_impl, scan_folder_impl,
-    set_tag_repos_impl, unassign_tag_impl, update_tag_impl, Repository, Tag, TagWithStats,
+    add_discovered_repos_impl, add_repository_impl, assign_tag_impl, create_tag_impl,
+    delete_tag_impl, discover_repos_impl, list_repositories_impl, list_tags_with_stats_impl,
+    remove_repository_impl, scan_folder_impl, set_tag_repos_impl, unassign_tag_impl,
+    update_tag_impl, DiscoveredRepo, Repository, Tag, TagWithStats,
 };
 
 pub struct AppState {
@@ -163,6 +164,25 @@ async fn scan_folder(
 ) -> AppResult<Vec<Repository>> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || scan_folder_impl(&db, &folder))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn discover_repos(folder: String) -> AppResult<Vec<DiscoveredRepo>> {
+    tauri::async_runtime::spawn_blocking(move || discover_repos_impl(&folder))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn add_discovered_repos(
+    state: tauri::State<'_, AppState>,
+    paths: Vec<String>,
+    tag_id: Option<i64>,
+) -> AppResult<Vec<Repository>> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || add_discovered_repos_impl(&db, paths, tag_id))
         .await
         .unwrap()
 }
@@ -621,6 +641,8 @@ pub fn run() {
             run_quality_scan,
             run_history_secret_scan,
             scan_folder,
+            discover_repos,
+            add_discovered_repos,
             get_repo_summary,
             get_commit_heatmap,
             get_commit_timeline,

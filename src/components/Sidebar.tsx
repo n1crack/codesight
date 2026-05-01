@@ -22,10 +22,13 @@ import {
 import { api, pickRepositoryDir, pickScanRoot } from "@/api";
 import { ManageTagsButton, TagManager } from "@/components/TagManager";
 import { Sparkline } from "@/components/Sparkline";
+import { Button } from "@/components/ui/Button";
+import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
+import { Select } from "@/components/ui/Select";
 import { useAppState } from "@/state/AppState";
 import { classesFor } from "@/lib/tagColors";
 import { cn } from "@/lib/utils";
-import type { Repository, Tag } from "@/types";
+import type { DiscoveredRepo, Repository, Tag } from "@/types";
 
 const GLOBAL_NAV = [
   { to: "/", icon: Home, key: "nav.home" },
@@ -46,11 +49,19 @@ const TOP_PANE_MIN = 60;
 const TOP_PANE_MAX = 700;
 const COLLAPSED_GROUPS_KEY = "codesight.collapsedGroups";
 
+const DRAG_MIME = "application/x-codesight-repo";
+
 interface RepoGroup {
-  key: string;        // "tag-3" or "untagged"
-  tag: Tag | null;    // null = untagged
+  key: string; // "tag-3" or "untagged"
+  tag: Tag | null;
   label: string;
   repos: Repository[];
+}
+
+interface DragPayload {
+  repoId: number;
+  sourceGroupKey: string;
+  sourceTagId: number | null;
 }
 
 function useCollapsedGroups() {
@@ -135,6 +146,11 @@ export function Sidebar() {
   const { selectedRepoId, setSelectedRepoId } = useAppState();
   const [filter, setFilter] = useState("");
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<Repository | null>(null);
+  const [scanState, setScanState] = useState<{
+    folder: string;
+    items: DiscoveredRepo[];
+  } | null>(null);
   const topPaneRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [topPaneH, setTopPaneH] = useState<number | null>(() => {
@@ -192,6 +208,11 @@ export function Sidebar() {
     queryFn: api.listRepositories,
   });
 
+  const tagsQuery = useQuery({
+    queryKey: ["repoTags"],
+    queryFn: api.listRepoTags,
+  });
+
   const sparklines = useQuery({
     queryKey: ["sparklines", repos.data?.length ?? 0],
     queryFn: () => api.getReposSparklines(30),
@@ -220,18 +241,41 @@ export function Sidebar() {
     },
   });
 
-  const scan = useMutation({
+  const discover = useMutation({
     mutationFn: async () => {
       const folder = await pickScanRoot();
-      if (!folder) return [];
-      return api.scanFolder(folder);
+      if (!folder) return null;
+      const items = await api.discoverRepos(folder);
+      return { folder, items };
     },
+    onSuccess: (result) => {
+      if (!result) return;
+      if (result.items.length === 0) {
+        alert(t("errors.noReposFound"));
+        return;
+      }
+      setScanState(result);
+    },
+    onError: (err) => {
+      console.error(err);
+      alert(t("errors.scanFailed", { message: String(err) }));
+    },
+  });
+
+  const commitScan = useMutation({
+    mutationFn: ({
+      paths,
+      tagId,
+    }: {
+      paths: string[];
+      tagId: number | null;
+    }) => api.addDiscoveredRepos(paths, tagId),
     onSuccess: (added) => {
       qc.invalidateQueries({ queryKey: ["repositories"] });
       qc.invalidateQueries({ queryKey: ["sparklines"] });
-      if (added.length === 0) {
-        alert(t("errors.noReposFound"));
-      } else if (!selectedRepoId) {
+      qc.invalidateQueries({ queryKey: ["repoTags"] });
+      setScanState(null);
+      if (added.length > 0 && !selectedRepoId) {
         setSelectedRepoId(added[0].id);
       }
     },
@@ -247,13 +291,41 @@ export function Sidebar() {
       qc.invalidateQueries({ queryKey: ["repositories"] });
       qc.invalidateQueries({ queryKey: ["sparklines"] });
       if (selectedRepoId === id) setSelectedRepoId(null);
+      setRemoveTarget(null);
+    },
+    onError: (err) => {
+      console.error(err);
+      setRemoveTarget(null);
     },
   });
 
-  const handleRemove = (r: Repository) => {
-    if (window.confirm(t("sidebar.confirmRemove", { name: r.name }))) {
-      remove.mutate(r.id);
-    }
+  const moveRepoTags = useMutation({
+    mutationFn: async (vars: {
+      repoId: number;
+      addTagId: number | null;
+      removeTagId: number | null;
+    }) => {
+      if (vars.addTagId != null) {
+        await api.assignTag(vars.repoId, vars.addTagId);
+      }
+      if (vars.removeTagId != null && vars.removeTagId !== vars.addTagId) {
+        await api.unassignTag(vars.repoId, vars.removeTagId);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["repositories"] });
+      qc.invalidateQueries({ queryKey: ["repoTags"] });
+    },
+  });
+
+  const handleDropOnGroup = (group: RepoGroup, payload: DragPayload) => {
+    if (payload.sourceGroupKey === group.key) return;
+    const target = group.tag?.id ?? null;
+    moveRepoTags.mutate({
+      repoId: payload.repoId,
+      addTagId: target,
+      removeTagId: payload.sourceTagId,
+    });
   };
 
   const all = repos.data ?? [];
@@ -386,8 +458,8 @@ export function Sidebar() {
             type="button"
             aria-label={t("sidebar.scanFolder")}
             title={t("sidebar.scanFolder")}
-            onClick={() => scan.mutate()}
-            disabled={scan.isPending}
+            onClick={() => discover.mutate()}
+            disabled={discover.isPending}
             className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground disabled:opacity-40"
           >
             <FolderSearch size={13} />
@@ -422,8 +494,8 @@ export function Sidebar() {
         {repos.data && repos.data.length === 0 && (
           <EmptyRepoState
             onAdd={() => addOne.mutate()}
-            onScan={() => scan.mutate()}
-            disabled={addOne.isPending || scan.isPending}
+            onScan={() => discover.mutate()}
+            disabled={addOne.isPending || discover.isPending}
           />
         )}
         {showFilter && filtered.length === 0 && repos.data && repos.data.length > 0 && (
@@ -439,7 +511,8 @@ export function Sidebar() {
             onToggle={() => toggle(group.key)}
             selectedRepoId={selectedRepoId}
             onRepoClick={onRepoClick}
-            onRepoRemove={handleRemove}
+            onRepoRemove={(r) => setRemoveTarget(r)}
+            onDropRepo={handleDropOnGroup}
             sparkByRepo={sparkByRepo}
           />
         ))}
@@ -448,6 +521,31 @@ export function Sidebar() {
       <TagManager
         open={tagManagerOpen}
         onClose={() => setTagManagerOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={removeTarget != null}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={() => removeTarget && remove.mutate(removeTarget.id)}
+        title={t("sidebar.deleteTitle")}
+        description={
+          removeTarget
+            ? t("sidebar.deleteConfirm", { name: removeTarget.name })
+            : ""
+        }
+        confirmLabel={t("sidebar.deleteAction")}
+        tone="destructive"
+        pending={remove.isPending}
+      />
+
+      <ScanResultDialog
+        open={scanState != null}
+        folder={scanState?.folder ?? ""}
+        items={scanState?.items ?? []}
+        tags={tagsQuery.data ?? []}
+        pending={commitScan.isPending}
+        onCancel={() => setScanState(null)}
+        onConfirm={(paths, tagId) => commitScan.mutate({ paths, tagId })}
       />
     </aside>
   );
@@ -460,6 +558,7 @@ function RepoGroupView({
   selectedRepoId,
   onRepoClick,
   onRepoRemove,
+  onDropRepo,
   sparkByRepo,
 }: {
   group: RepoGroup;
@@ -468,13 +567,47 @@ function RepoGroupView({
   selectedRepoId: number | null;
   onRepoClick: (id: number) => void;
   onRepoRemove: (r: Repository) => void;
+  onDropRepo: (group: RepoGroup, payload: DragPayload) => void;
   sparkByRepo: Map<number, number[]>;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const cls = group.tag ? classesFor(group.tag.color) : null;
+  const [isDropTarget, setIsDropTarget] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.types).includes(DRAG_MIME)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setIsDropTarget(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setIsDropTarget(false);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    setIsDropTarget(false);
+    const raw = e.dataTransfer.getData(DRAG_MIME);
+    if (!raw) return;
+    e.preventDefault();
+    try {
+      const payload = JSON.parse(raw) as DragPayload;
+      onDropRepo(group, payload);
+    } catch {
+      // ignore
+    }
+  };
+
   return (
-    <div className="mb-1">
+    <div
+      className={cn(
+        "mb-1 rounded-md transition-colors",
+        isDropTarget && "bg-primary/10 ring-1 ring-primary/40",
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <div className="group flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-sidebar-accent/30">
         <button
           type="button"
@@ -527,6 +660,8 @@ function RepoGroupView({
             <RepoRow
               key={`${group.key}-${r.id}`}
               repo={r}
+              groupKey={group.key}
+              groupTagId={group.tag?.id ?? null}
               isActive={r.id === selectedRepoId}
               onClick={() => onRepoClick(r.id)}
               onRemove={() => onRepoRemove(r)}
@@ -542,6 +677,8 @@ function RepoGroupView({
 
 function RepoRow({
   repo,
+  groupKey,
+  groupTagId,
   isActive,
   onClick,
   onRemove,
@@ -549,6 +686,8 @@ function RepoRow({
   t,
 }: {
   repo: Repository;
+  groupKey: string;
+  groupTagId: number | null;
   isActive: boolean;
   onClick: () => void;
   onRemove: () => void;
@@ -559,8 +698,26 @@ function RepoRow({
   const sparkTitle = total
     ? t("sparkline.last30Days", { count: total })
     : t("sparkline.noActivity");
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragStart = (e: React.DragEvent) => {
+    const payload: DragPayload = {
+      repoId: repo.id,
+      sourceGroupKey: groupKey,
+      sourceTagId: groupTagId,
+    };
+    e.dataTransfer.setData(DRAG_MIME, JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = "move";
+    setIsDragging(true);
+  };
+
   return (
-    <li className="group/row relative">
+    <li
+      className={cn("group/row relative", isDragging && "opacity-40")}
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={() => setIsDragging(false)}
+    >
       {isActive && (
         <span
           aria-hidden
@@ -630,6 +787,113 @@ function RepoRow({
         <Trash2 size={11} />
       </button>
     </li>
+  );
+}
+
+function ScanResultDialog({
+  open,
+  folder,
+  items,
+  tags,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  folder: string;
+  items: DiscoveredRepo[];
+  tags: { id: number; name: string }[];
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: (paths: string[], tagId: number | null) => void;
+}) {
+  const { t } = useTranslation();
+  const [tagId, setTagId] = useState<string>("");
+
+  useEffect(() => {
+    if (!open) setTagId("");
+  }, [open]);
+
+  const tagOptions = useMemo(
+    () => [
+      { value: "", label: t("sidebar.scanModalNoTag") },
+      ...tags.map((tg) => ({ value: String(tg.id), label: `#${tg.name}` })),
+    ],
+    [tags, t],
+  );
+
+  if (!open) return null;
+
+  return (
+    <Dialog
+      open={open}
+      onClose={pending ? () => undefined : onCancel}
+      title={t("sidebar.scanModalTitle", { count: items.length })}
+      description={folder}
+      size="md"
+      footer={
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onCancel}
+            disabled={pending}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() =>
+              onConfirm(
+                items.map((d) => d.path),
+                tagId ? Number(tagId) : null,
+              )
+            }
+            disabled={pending || items.length === 0}
+          >
+            {pending
+              ? t("sidebar.scanModalAdding")
+              : t("sidebar.scanModalAdd", { count: items.length })}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {t("sidebar.scanModalTagOptional")}
+          </div>
+          <Select
+            value={tagId}
+            onChange={(v) => setTagId(v)}
+            options={tagOptions}
+            className="h-8 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {t("sidebar.scanModalDiscovered", { count: items.length })}
+          </div>
+          <ul className="max-h-72 divide-y overflow-y-auto rounded-md border">
+            {items.map((d) => (
+              <li
+                key={d.path}
+                className="flex items-center gap-2 px-3 py-2 text-xs"
+              >
+                <FolderGit2
+                  size={12}
+                  className="shrink-0 text-muted-foreground"
+                />
+                <span className="font-medium">{d.name}</span>
+                <code className="ml-auto truncate font-mono text-[11px] text-muted-foreground">
+                  {d.path}
+                </code>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Dialog>
   );
 }
 

@@ -12,6 +12,7 @@ import {
   FileWarning,
   GitMerge,
   KeyRound,
+  Lightbulb,
   ListTodo,
   Package,
   Play,
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 import type {
   HistorySecretReport,
   PresenceCheck,
+  QualityReport,
   ScanProgress,
 } from "@/types";
 
@@ -44,6 +46,302 @@ function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, v));
+
+interface SubScores {
+  hygiene: number;
+  secrets: number;
+  dependencies: number;
+  code: number;
+  authorship: number;
+  total: number;
+}
+
+function scoreReport(d: QualityReport): SubScores {
+  const cov = d.repoHygiene.gitignore.covers;
+  const missingCovers = d.repoHygiene.gitignore.present
+    ? (cov.envFiles ? 0 : 1) +
+      (cov.nodeModules ? 0 : 1) +
+      (cov.target ? 0 : 1) +
+      (cov.distBuild ? 0 : 1) +
+      (cov.ide ? 0 : 1) +
+      (cov.osFiles ? 0 : 1)
+    : 6;
+  const missingCritical =
+    (d.repoHygiene.gitignore.present ? 0 : 1) +
+    (d.repoHygiene.license.present ? 0 : 1) +
+    (d.repoHygiene.readme.present ? 0 : 1) +
+    (d.repoHygiene.ciConfig.present ? 0 : 1);
+  const missingOptional =
+    (d.repoHygiene.contributing.present ? 0 : 1) +
+    (d.repoHygiene.securityMd.present ? 0 : 1) +
+    (d.repoHygiene.codeOfConduct.present ? 0 : 1) +
+    (d.repoHygiene.editorconfig.present ? 0 : 1);
+  const hygiene = clamp(
+    20 - missingCritical * 3 - missingOptional * 0.5 - missingCovers * 1.2,
+    0,
+    20,
+  );
+
+  const highHits = d.secretsHead.hits.filter((s) => s.severity === "high")
+    .length;
+  const medHits = d.secretsHead.hits.filter((s) => s.severity === "medium")
+    .length;
+  const lowHits = d.secretsHead.hits.length - highHits - medHits;
+  const secrets = clamp(
+    20 - highHits * 12 - medHits * 5 - lowHits * 2 -
+      d.secretsHead.riskyFiles.length * 3,
+    0,
+    20,
+  );
+
+  const noLock = d.dependencies.manifests.filter((m) => !m.lockfilePath).length;
+  const dependencies = clamp(20 - noLock * 4, 0, 20);
+
+  const code = clamp(
+    20 -
+      d.codeHygiene.conflictMarkers.length * 10 -
+      d.codeHygiene.generatedFiles.length * 1 -
+      Math.min(8, d.codeHygiene.largeFiles.length * 0.8) -
+      Math.max(0, d.codeHygiene.todoCount - 50) * 0.05,
+    0,
+    20,
+  );
+
+  const botPenalty =
+    d.authorship.botSharePct > 30
+      ? Math.min(10, (d.authorship.botSharePct - 30) / 5)
+      : 0;
+  const authorship = clamp(
+    20 - botPenalty - d.authorship.genericEmailAuthors.length * 1.5,
+    0,
+    20,
+  );
+
+  return {
+    hygiene,
+    secrets,
+    dependencies,
+    code,
+    authorship,
+    total: Math.round(hygiene + secrets + dependencies + code + authorship),
+  };
+}
+
+type Letter = "A" | "B" | "C" | "D" | "F";
+function letterGrade(score: number): Letter {
+  if (score >= 90) return "A";
+  if (score >= 80) return "B";
+  if (score >= 70) return "C";
+  if (score >= 60) return "D";
+  return "F";
+}
+
+const SCORE_TONE: Record<Letter, { ring: string; text: string; bar: string }> = {
+  A: {
+    ring: "ring-emerald-500/40 bg-emerald-500/10",
+    text: "text-emerald-600 dark:text-emerald-400",
+    bar: "bg-emerald-500",
+  },
+  B: {
+    ring: "ring-sky-500/40 bg-sky-500/10",
+    text: "text-sky-600 dark:text-sky-400",
+    bar: "bg-sky-500",
+  },
+  C: {
+    ring: "ring-amber-500/40 bg-amber-500/10",
+    text: "text-amber-600 dark:text-amber-400",
+    bar: "bg-amber-500",
+  },
+  D: {
+    ring: "ring-orange-500/40 bg-orange-500/10",
+    text: "text-orange-600 dark:text-orange-400",
+    bar: "bg-orange-500",
+  },
+  F: {
+    ring: "ring-rose-500/40 bg-rose-500/10",
+    text: "text-rose-600 dark:text-rose-400",
+    bar: "bg-rose-500",
+  },
+};
+
+type SuggestionSeverity = "critical" | "high" | "medium" | "low";
+interface Suggestion {
+  id: string;
+  severity: SuggestionSeverity;
+  textKey: string;
+  vars?: Record<string, string | number>;
+}
+
+const SEVERITY_RANK: Record<SuggestionSeverity, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+const SEVERITY_TONE: Record<SuggestionSeverity, string> = {
+  critical: "text-rose-600 dark:text-rose-400",
+  high: "text-orange-600 dark:text-orange-400",
+  medium: "text-amber-600 dark:text-amber-400",
+  low: "text-sky-600 dark:text-sky-400",
+};
+const SEVERITY_DOT: Record<SuggestionSeverity, string> = {
+  critical: "bg-rose-500",
+  high: "bg-orange-500",
+  medium: "bg-amber-500",
+  low: "bg-sky-500",
+};
+
+function buildSuggestions(
+  d: QualityReport,
+  historyScanRun: boolean,
+): Suggestion[] {
+  const out: Suggestion[] = [];
+  const highHits = d.secretsHead.hits.filter((s) => s.severity === "high")
+    .length;
+  const medHits = d.secretsHead.hits.filter((s) => s.severity === "medium")
+    .length;
+  const risky = d.secretsHead.riskyFiles.length;
+  const conflicts = d.codeHygiene.conflictMarkers.length;
+  const noLock = d.dependencies.manifests.filter((m) => !m.lockfilePath).length;
+  const cov = d.repoHygiene.gitignore.covers;
+
+  if (highHits > 0)
+    out.push({
+      id: "secretsHigh",
+      severity: "critical",
+      textKey: "quality.tip.secretsHigh",
+      vars: { count: highHits },
+    });
+  if (conflicts > 0)
+    out.push({
+      id: "conflicts",
+      severity: "critical",
+      textKey: "quality.tip.conflicts",
+      vars: { count: conflicts },
+    });
+  if (risky > 0)
+    out.push({
+      id: "riskyFiles",
+      severity: "high",
+      textKey: "quality.tip.riskyFiles",
+      vars: { count: risky },
+    });
+  if (medHits > 0)
+    out.push({
+      id: "secretsMedium",
+      severity: "high",
+      textKey: "quality.tip.secretsMedium",
+      vars: { count: medHits },
+    });
+  if (!d.repoHygiene.gitignore.present)
+    out.push({
+      id: "gitignore",
+      severity: "high",
+      textKey: "quality.tip.gitignore",
+    });
+  if (noLock > 0)
+    out.push({
+      id: "lockfile",
+      severity: "medium",
+      textKey: "quality.tip.lockfile",
+      vars: { count: noLock },
+    });
+  if (!d.repoHygiene.license.present)
+    out.push({
+      id: "license",
+      severity: "medium",
+      textKey: "quality.tip.license",
+    });
+  if (!d.repoHygiene.readme.present)
+    out.push({
+      id: "readme",
+      severity: "medium",
+      textKey: "quality.tip.readme",
+    });
+  if (!d.repoHygiene.ciConfig.present)
+    out.push({
+      id: "ciConfig",
+      severity: "medium",
+      textKey: "quality.tip.ciConfig",
+    });
+  if (
+    d.repoHygiene.gitignore.present &&
+    (!cov.envFiles || !cov.nodeModules || !cov.target || !cov.distBuild)
+  ) {
+    const missing: string[] = [];
+    if (!cov.envFiles) missing.push(".env");
+    if (!cov.nodeModules) missing.push("node_modules");
+    if (!cov.target) missing.push("target/");
+    if (!cov.distBuild) missing.push("dist/build");
+    if (!cov.ide) missing.push("IDE");
+    if (!cov.osFiles) missing.push("OS");
+    out.push({
+      id: "gitignoreCovers",
+      severity: "medium",
+      textKey: "quality.tip.gitignoreCovers",
+      vars: { items: missing.join(", ") },
+    });
+  }
+  if (!historyScanRun)
+    out.push({
+      id: "deepScan",
+      severity: "medium",
+      textKey: "quality.tip.deepScan",
+    });
+  if (d.codeHygiene.largeFiles.length > 0)
+    out.push({
+      id: "largeFiles",
+      severity: "low",
+      textKey: "quality.tip.largeFiles",
+      vars: { count: d.codeHygiene.largeFiles.length },
+    });
+  if (d.codeHygiene.generatedFiles.length > 0)
+    out.push({
+      id: "generatedFiles",
+      severity: "low",
+      textKey: "quality.tip.generatedFiles",
+      vars: { count: d.codeHygiene.generatedFiles.length },
+    });
+  if (!d.repoHygiene.contributing.present)
+    out.push({
+      id: "contributing",
+      severity: "low",
+      textKey: "quality.tip.contributing",
+    });
+  if (!d.repoHygiene.securityMd.present)
+    out.push({
+      id: "securityMd",
+      severity: "low",
+      textKey: "quality.tip.securityMd",
+    });
+  if (!d.repoHygiene.editorconfig.present)
+    out.push({
+      id: "editorconfig",
+      severity: "low",
+      textKey: "quality.tip.editorconfig",
+    });
+  if (d.authorship.botSharePct > 30)
+    out.push({
+      id: "botHigh",
+      severity: "low",
+      textKey: "quality.tip.botHigh",
+      vars: { pct: d.authorship.botSharePct.toFixed(0) },
+    });
+  if (d.authorship.genericEmailAuthors.length > 0)
+    out.push({
+      id: "genericEmail",
+      severity: "low",
+      textKey: "quality.tip.genericEmail",
+      vars: { count: d.authorship.genericEmailAuthors.length },
+    });
+
+  return out
+    .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
+    .slice(0, 8);
 }
 
 function PresenceRow({
@@ -206,6 +504,12 @@ export function QualityPage() {
 
   const data = scan.data;
 
+  const scores = useMemo(() => (data ? scoreReport(data) : null), [data]);
+  const suggestions = useMemo(
+    () => (data ? buildSuggestions(data, !!historyReport) : []),
+    [data, historyReport],
+  );
+
   const summary = useMemo(() => {
     if (!data) return null;
     const h = data.repoHygiene;
@@ -264,8 +568,10 @@ export function QualityPage() {
       <div className="flex flex-col gap-4 p-6">
         {scan.isPending && <Skeleton className="h-32 w-full" />}
 
-        {data && summary && (
+        {data && summary && scores && (
           <>
+            <ScoreCard scores={scores} />
+            <SuggestionsCard suggestions={suggestions} />
             {/* 1. Repo hygiene */}
             <Section
               icon={
@@ -826,5 +1132,141 @@ export function QualityPage() {
         )}
       </div>
     </>
+  );
+}
+
+function ScoreCard({ scores }: { scores: SubScores }) {
+  const { t } = useTranslation();
+  const grade = letterGrade(scores.total);
+  const tone = SCORE_TONE[grade];
+  const groups: Array<{ key: keyof SubScores; label: string }> = [
+    { key: "hygiene", label: t("quality.groupHygiene") },
+    { key: "secrets", label: t("quality.groupSecretsHead") },
+    { key: "dependencies", label: t("quality.groupDependencies") },
+    { key: "code", label: t("quality.groupCode") },
+    { key: "authorship", label: t("quality.groupAuthorship") },
+  ];
+  return (
+    <Card className="transition-shadow hover:shadow-md">
+      <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:gap-6">
+        <div
+          className={cn(
+            "flex h-28 w-28 shrink-0 flex-col items-center justify-center rounded-full ring-4",
+            tone.ring,
+          )}
+        >
+          <div
+            className={cn(
+              "text-4xl font-bold leading-none tabular-nums",
+              tone.text,
+            )}
+          >
+            {scores.total}
+          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+            / 100
+          </div>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-base font-semibold">
+              {t("quality.scoreTitle")}
+            </h2>
+            <span className={cn("text-sm font-medium", tone.text)}>
+              {t(`quality.scoreLabel.${grade}`)}
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {t("quality.scoreHint")}
+          </p>
+          <div className="mt-3 space-y-1.5">
+            {groups.map((g) => {
+              const value = scores[g.key] as number;
+              const pct = (value / 20) * 100;
+              const groupTone =
+                value >= 18
+                  ? "bg-emerald-500"
+                  : value >= 14
+                    ? "bg-sky-500"
+                    : value >= 10
+                      ? "bg-amber-500"
+                      : value >= 6
+                        ? "bg-orange-500"
+                        : "bg-rose-500";
+              return (
+                <div key={g.key} className="flex items-center gap-2 text-xs">
+                  <span className="w-32 shrink-0 truncate text-muted-foreground">
+                    {g.label}
+                  </span>
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn("h-full rounded-full", groupTone)}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground">
+                    {Math.round(value)}/20
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function SuggestionsCard({ suggestions }: { suggestions: Suggestion[] }) {
+  const { t } = useTranslation();
+  return (
+    <Card className="transition-shadow hover:shadow-md">
+      <div className="flex items-center gap-2 border-b px-5 py-3">
+        <Lightbulb size={14} className="text-amber-500" />
+        <div className="flex-1">
+          <div className="text-sm font-semibold">
+            {t("quality.suggestions")}
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            {t("quality.suggestionsHint")}
+          </div>
+        </div>
+        <span className="text-[10px] tabular-nums text-muted-foreground">
+          {suggestions.length}
+        </span>
+      </div>
+      {suggestions.length === 0 ? (
+        <div className="flex items-center gap-2 p-4 text-sm text-emerald-600 dark:text-emerald-400">
+          <Check size={14} />
+          {t("quality.tipNoAction")}
+        </div>
+      ) : (
+        <ul className="divide-y">
+          {suggestions.map((s) => (
+            <li
+              key={s.id}
+              className="flex items-start gap-3 px-5 py-2.5 text-sm"
+            >
+              <span
+                className={cn(
+                  "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+                  SEVERITY_DOT[s.severity],
+                )}
+                aria-hidden
+              />
+              <span className="min-w-0 flex-1">{t(s.textKey, s.vars)}</span>
+              <span
+                className={cn(
+                  "shrink-0 text-[10px] uppercase tracking-wide",
+                  SEVERITY_TONE[s.severity],
+                )}
+              >
+                {t(`quality.severity.${s.severity}`)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }

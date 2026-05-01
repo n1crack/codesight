@@ -39,6 +39,13 @@ pub struct Repository {
     pub tags: Vec<Tag>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoveredRepo {
+    pub path: String,
+    pub name: String,
+}
+
 const ALLOWED_COLORS: &[&str] = &[
     "slate", "red", "orange", "amber", "emerald", "sky", "indigo", "fuchsia",
 ];
@@ -162,6 +169,17 @@ pub fn remove_repository_impl(db: &Db, id: i64) -> AppResult<()> {
 }
 
 pub fn scan_folder_impl(db: &Db, folder: &str) -> AppResult<Vec<Repository>> {
+    let discovered = discover_repos_impl(folder)?;
+    let mut added: Vec<Repository> = Vec::new();
+    for d in discovered {
+        if let Ok(r) = add_repository_impl(db, &d.path) {
+            added.push(r);
+        }
+    }
+    Ok(added)
+}
+
+pub fn discover_repos_impl(folder: &str) -> AppResult<Vec<DiscoveredRepo>> {
     let root = PathBuf::from(folder);
     if !root.is_dir() {
         return Err(AppError::Other(format!(
@@ -170,7 +188,7 @@ pub fn scan_folder_impl(db: &Db, folder: &str) -> AppResult<Vec<Repository>> {
         )));
     }
 
-    let mut found_paths: Vec<PathBuf> = Vec::new();
+    let mut found: Vec<DiscoveredRepo> = Vec::new();
     let walker = WalkDir::new(&root)
         .max_depth(6)
         .follow_links(false)
@@ -187,16 +205,33 @@ pub fn scan_folder_impl(db: &Db, folder: &str) -> AppResult<Vec<Repository>> {
         if entry.file_type().is_dir() && entry.file_name() == ".git" {
             if let Some(parent) = entry.path().parent() {
                 if GitRepository::open(parent).is_ok() {
-                    found_paths.push(parent.to_path_buf());
+                    let canonical = parent.canonicalize().unwrap_or_else(|_| parent.to_path_buf());
+                    let name = derive_name(&canonical);
+                    found.push(DiscoveredRepo {
+                        path: canonical.display().to_string(),
+                        name,
+                    });
                 }
             }
         }
     }
+    found.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(found)
+}
 
+pub fn add_discovered_repos_impl(
+    db: &Db,
+    paths: Vec<String>,
+    tag_id: Option<i64>,
+) -> AppResult<Vec<Repository>> {
     let mut added: Vec<Repository> = Vec::new();
-    for p in found_paths {
-        if let Ok(r) = add_repository_impl(db, &p.display().to_string()) {
-            added.push(r);
+    for p in paths {
+        if let Ok(r) = add_repository_impl(db, &p) {
+            if let Some(tid) = tag_id {
+                let _ = assign_tag_impl(db, r.id, tid);
+            }
+            let fresh = get_repository_impl(db, r.id).unwrap_or(r);
+            added.push(fresh);
         }
     }
     Ok(added)

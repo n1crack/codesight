@@ -16,6 +16,7 @@ import {
 import { api } from "@/api";
 import { useAppState } from "@/state/AppState";
 import { cn } from "@/lib/utils";
+import { highlightMatch } from "@/lib/highlightMatch";
 
 type Item = {
   id: string;
@@ -221,7 +222,9 @@ export function CommandPalette() {
                     )}
                   >
                     <Icon size={14} />
-                    <span className="flex-1 truncate">{it.label}</span>
+                    <span className="flex-1 truncate">
+                      {highlightMatch(it.label, query)}
+                    </span>
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                       {it.hint}
                     </span>

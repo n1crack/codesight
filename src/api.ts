@@ -11,6 +11,7 @@ import type {
   CommitInfo,
   CommitMessageStats,
   Contributor,
+  DiscoveredRepo,
   AuthorSpecialization,
   ChurnRiskFile,
   CoauthorPair,
@@ -61,6 +62,13 @@ export const api = {
   setTagRepos: (tagId: number, repoIds: number[]) =>
     invoke<void>("set_tag_repos", { tagId, repoIds }),
   scanFolder: (folder: string) => invoke<Repository[]>("scan_folder", { folder }),
+  discoverRepos: (folder: string) =>
+    invoke<DiscoveredRepo[]>("discover_repos", { folder }),
+  addDiscoveredRepos: (paths: string[], tagId: number | null) =>
+    invoke<Repository[]>("add_discovered_repos", {
+      paths,
+      tagId,
+    }),
   getRepoSummary: (id: number) => invoke<RepoSummary>("get_repo_summary", { id }),
   getCommitHeatmap: (id: number, year: number) =>
     invoke<HeatmapData>("get_commit_heatmap", { id, year }),

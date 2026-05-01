@@ -310,22 +310,33 @@ function SplitDiff({
               @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@{" "}
               {hunk.header}
             </div>
-            <div>
-              {pairs.map((p, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-2 divide-x"
-                >
-                  <SplitCell
-                    line={p.left}
-                    tokens={p.left ? tokens?.get(p.left.tokensKey) ?? null : null}
-                  />
-                  <SplitCell
-                    line={p.right}
-                    tokens={p.right ? tokens?.get(p.right.tokensKey) ?? null : null}
-                  />
+            <div className="grid grid-cols-2 divide-x">
+              <div className="overflow-x-auto">
+                <div className="w-max min-w-full">
+                  {pairs.map((p, i) => (
+                    <SplitCell
+                      key={`l${i}`}
+                      line={p.left}
+                      tokens={
+                        p.left ? tokens?.get(p.left.tokensKey) ?? null : null
+                      }
+                    />
+                  ))}
                 </div>
-              ))}
+              </div>
+              <div className="overflow-x-auto">
+                <div className="w-max min-w-full">
+                  {pairs.map((p, i) => (
+                    <SplitCell
+                      key={`r${i}`}
+                      line={p.right}
+                      tokens={
+                        p.right ? tokens?.get(p.right.tokensKey) ?? null : null
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -342,27 +353,22 @@ function SplitCell({
   tokens: ThemedToken[] | null;
 }) {
   if (!line) {
-    return <div className="bg-muted/10" />;
+    return <div className="h-5 bg-muted/10" />;
   }
   const o = line.origin;
   const bg = LINE_BG[o] ?? "";
   const gut = LINE_GUTTER[o] ?? "text-muted-foreground";
   return (
-    <div
-      className={cn(
-        "grid grid-cols-[3rem_1fr] whitespace-pre",
-        bg,
-      )}
-    >
+    <div className={cn("flex whitespace-pre", bg)}>
       <span
         className={cn(
-          "select-none px-2 text-right text-[11px] tabular-nums",
+          "w-12 shrink-0 select-none px-2 text-right text-[11px] tabular-nums",
           gut,
         )}
       >
         {line.lineno ?? ""}
       </span>
-      <span className="px-2">
+      <span className="px-2 pr-4">
         <LineContent content={line.content} tokens={tokens} />
       </span>
     </div>

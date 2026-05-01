@@ -47,6 +47,15 @@
     "noReposBody": "Bir depo ekleyin veya bir klasörü tarayarak başlayın.",
     "remove": "Depoyu kaldır",
     "confirmRemove": "\"{{name}}\" codesight'tan kaldırılsın mı? Diskteki dosyalar etkilenmez.",
+    "deleteTitle": "Depoyu kaldır",
+    "deleteConfirm": "\"{{name}}\" codesight'tan kaldırılsın mı? Diskteki dosyalar etkilenmez.",
+    "deleteAction": "Kaldır",
+    "scanModalTitle": "{{count}} depo bulundu",
+    "scanModalDiscovered": "Bulunanlar ({{count}})",
+    "scanModalTagOptional": "Etiket (opsiyonel)",
+    "scanModalNoTag": "— etiketsiz —",
+    "scanModalAdd": "{{count}} depo ekle",
+    "scanModalAdding": "Ekleniyor…",
     "filterPlaceholder": "Depo filtrele veya #etiket…",
     "noMatch": "Eşleşen depo yok",
     "dragHint": "Sürükle ya da çift-tıklayıp sıfırla",
@@ -138,7 +147,7 @@
     }
   },
   "activity": {
-    "title": "Aktivite paterni",
+    "title": "Aktivite örüntüsü",
     "subtitle": "Bu ekip ne zaman commit atıyor?",
     "hourOfDay": "Günün saati",
     "dayOfWeek": "Haftanın günü",
@@ -341,7 +350,45 @@
     "deepScanDone": "{{commits}} commit, {{blobs}} blob tarandı",
     "deepScanNoHits": "Geçmişte secret bulunmadı",
     "deepScanHits": "{{count}} geçmiş secret introduction",
-    "deepScanError": "Tarama başarısız: {{message}}"
+    "deepScanError": "Tarama başarısız: {{message}}",
+    "scoreTitle": "Sağlık skoru",
+    "scoreHint": "Repo hijyeni, secret, bağımlılık, kod sağlığı ve yazarlığın birleşik skoru.",
+    "scoreLabel": {
+      "A": "Mükemmel",
+      "B": "İyi",
+      "C": "Orta",
+      "D": "Zayıf",
+      "F": "Kritik"
+    },
+    "suggestions": "Öneriler",
+    "suggestionsHint": "Önceliğe göre sıralanmış, yapılabilecek aksiyonlar.",
+    "tipNoAction": "Yapılacak bir şey yok — temiz!",
+    "severity": {
+      "critical": "kritik",
+      "high": "yüksek",
+      "medium": "orta",
+      "low": "düşük"
+    },
+    "tip": {
+      "secretsHigh": "HEAD'de {{count}} yüksek riskli secret — anahtarları döndür ve repodan çıkar.",
+      "secretsMedium": "{{count}} olası secret tespit edildi — incele ve kaldır ya da env dosyasına taşı.",
+      "riskyFiles": "{{count}} riskli dosya commit'lenmiş (.env, anahtar dosyaları) — kaldır ve .gitignore'a ekle.",
+      "deepScan": "Geçmişte secret kalmış olabilir — derin geçmiş taramasını çalıştır.",
+      "conflicts": "{{count}} merge conflict marker takipte kalmış — çöz ve dosyaları temizle.",
+      "gitignore": "Bir `.gitignore` ekle ve en az .env, node_modules, dist, target'ı kapsa.",
+      "gitignoreCovers": "`.gitignore`'u şunları da kapsayacak şekilde güncelle: {{items}}.",
+      "license": "Bir LICENSE dosyası ekle (MIT ya da Apache-2.0 yaygın seçimlerdir).",
+      "readme": "Bir README ekle — proje neyi çözüyor, nasıl çalıştırılır?",
+      "ciConfig": "CI yapılandırması ekle (.github/workflows, .gitlab-ci.yml vb.).",
+      "contributing": "CONTRIBUTING.md ekle — yeni katkıda bulunanlar nasıl yardım eder?",
+      "securityMd": "SECURITY.md ekle — güvenlik açığı bildirim akışını belirt.",
+      "editorconfig": ".editorconfig ekle — editör ayarları takım genelinde tutarlı olsun.",
+      "lockfile": "{{count}} manifest lockfile içermiyor — sürümleri kilitle.",
+      "largeFiles": "{{count}} büyük dosya (>500 KB) — Git LFS düşün veya kaldır.",
+      "generatedFiles": "{{count}} üretilmiş dosya commit'lenmiş — .gitignore'a ekle ve yereldekini yeniden derle.",
+      "botHigh": "Bot commit oranı %{{pct}} — gerçek katkıyı ölçerken botları filtrele.",
+      "genericEmail": "{{count}} jenerik e-postalı yazar — gerçek hesaba bağlamayı düşün."
+    }
   },
   "commit": {
     "title": "Commit",
