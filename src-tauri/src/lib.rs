@@ -12,17 +12,18 @@ use crate::analysis::{
     get_commit_graph_impl, get_commit_heatmap_impl, get_commit_message_stats_impl,
     get_commit_timeline_impl, get_contributor_detail_impl, get_contributor_heatmap_impl,
     get_contributor_recent_commits_impl, get_contributor_top_files_impl,
-    get_churn_risk_impl, get_contributor_cohort_impl, get_directory_hotspots_impl,
-    get_file_couplings_impl, get_file_hotspots_impl, get_global_heatmap_impl,
+    get_churn_risk_impl, get_coauthor_pairs_impl, get_contributor_cohort_impl,
+    get_directory_hotspots_impl, get_file_couplings_impl, get_file_hotspots_impl,
+    get_global_heatmap_impl,
     get_global_recent_commits_impl, get_global_summary_impl, get_language_breakdown_impl,
     get_ownership_report_impl, get_recent_commits_impl, get_repo_health_impl,
     get_repo_summary_impl, get_repos_sparklines_impl, get_top_contributors_impl,
     list_branches_impl, list_known_authors_impl, list_tags_impl, search_commits_impl,
-    ActivityPatterns, BranchInfo, ChurnPoint, ChurnRiskFile, CommitDetail, CommitInfo,
-    CommitMessageStats, Contributor, ContributorCohortPoint, ContributorDetail, DirectoryHotspot,
-    FileCoupling, FileHotspot, GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData,
-    LanguageStat, OwnershipReport, RepoHealth, RepoSparkline, RepoSummary, SearchParams, TagInfo,
-    TimelinePoint,
+    ActivityPatterns, BranchInfo, ChurnPoint, ChurnRiskFile, CoauthorPair, CommitDetail,
+    CommitInfo, CommitMessageStats, Contributor, ContributorCohortPoint, ContributorDetail,
+    DirectoryHotspot, FileCoupling, FileHotspot, GlobalRecentCommit, GlobalSummary, GraphCommit,
+    HeatmapData, LanguageStat, OwnershipReport, RepoHealth, RepoSparkline, RepoSummary,
+    SearchParams, TagInfo, TimelinePoint,
 };
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
@@ -265,11 +266,14 @@ async fn get_activity_patterns(
 async fn get_commit_message_stats(
     state: tauri::State<'_, AppState>,
     id: i64,
+    since: Option<String>,
 ) -> AppResult<CommitMessageStats> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || get_commit_message_stats_impl(&db, id))
-        .await
-        .unwrap()
+    tauri::async_runtime::spawn_blocking(move || {
+        get_commit_message_stats_impl(&db, id, since)
+    })
+    .await
+    .unwrap()
 }
 
 #[tauri::command]
@@ -411,9 +415,10 @@ async fn get_commit_detail(
 async fn get_global_summary(
     state: tauri::State<'_, AppState>,
     email: Option<String>,
+    tag_id: Option<i64>,
 ) -> AppResult<GlobalSummary> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || get_global_summary_impl(&db, email))
+    tauri::async_runtime::spawn_blocking(move || get_global_summary_impl(&db, email, tag_id))
         .await
         .unwrap()
 }
@@ -423,11 +428,14 @@ async fn get_global_heatmap(
     state: tauri::State<'_, AppState>,
     year: i32,
     email: Option<String>,
+    tag_id: Option<i64>,
 ) -> AppResult<HeatmapData> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || get_global_heatmap_impl(&db, year, email))
-        .await
-        .unwrap()
+    tauri::async_runtime::spawn_blocking(move || {
+        get_global_heatmap_impl(&db, year, email, tag_id)
+    })
+    .await
+    .unwrap()
 }
 
 #[tauri::command]
@@ -435,10 +443,11 @@ async fn get_global_recent_commits(
     state: tauri::State<'_, AppState>,
     limit: usize,
     email: Option<String>,
+    tag_id: Option<i64>,
 ) -> AppResult<Vec<GlobalRecentCommit>> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        get_global_recent_commits_impl(&db, limit, email)
+        get_global_recent_commits_impl(&db, limit, email, tag_id)
     })
     .await
     .unwrap()
@@ -447,9 +456,22 @@ async fn get_global_recent_commits(
 #[tauri::command]
 async fn list_known_authors(
     state: tauri::State<'_, AppState>,
+    tag_id: Option<i64>,
 ) -> AppResult<Vec<Contributor>> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || list_known_authors_impl(&db))
+    tauri::async_runtime::spawn_blocking(move || list_known_authors_impl(&db, tag_id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn get_coauthor_pairs(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    limit: usize,
+) -> AppResult<Vec<CoauthorPair>> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || get_coauthor_pairs_impl(&db, id, limit))
         .await
         .unwrap()
 }
@@ -541,6 +563,7 @@ pub fn run() {
             assign_tag,
             unassign_tag,
             set_tag_repos,
+            get_coauthor_pairs,
             scan_folder,
             get_repo_summary,
             get_commit_heatmap,

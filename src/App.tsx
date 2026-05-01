@@ -64,6 +64,16 @@ const ContributorsPage = lazy(() =>
 const MessagesPage = lazy(() =>
   import("@/pages/MessagesPage").then((m) => ({ default: m.MessagesPage })),
 );
+const CollaboratorsPage = lazy(() =>
+  import("@/pages/CollaboratorsPage").then((m) => ({
+    default: m.CollaboratorsPage,
+  })),
+);
+const TagOverviewPage = lazy(() =>
+  import("@/pages/TagOverviewPage").then((m) => ({
+    default: m.TagOverviewPage,
+  })),
+);
 const ContributorDetailPage = lazy(() =>
   import("@/pages/ContributorDetailPage").then((m) => ({
     default: m.ContributorDetailPage,
@@ -97,6 +107,7 @@ const router = createBrowserRouter([
       { path: "settings", element: <SettingsPage /> },
       { path: "commits/:oid", element: <CommitDetailPage /> },
       { path: "contributors/:email", element: <ContributorDetailPage /> },
+      { path: "tags/:id", element: <TagOverviewPage /> },
 
       {
         path: "activity",
@@ -118,6 +129,7 @@ const router = createBrowserRouter([
           { path: "ownership", element: <OwnershipPage /> },
           { path: "authors", element: <ContributorsPage /> },
           { path: "messages", element: <MessagesPage /> },
+          { path: "collaborators", element: <CollaboratorsPage /> },
         ],
       },
       {

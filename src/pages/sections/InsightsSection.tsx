@@ -13,6 +13,7 @@ export function InsightsSection() {
         { to: "hotspots", label: t("section.insights.hotspots") },
         { to: "ownership", label: t("section.insights.ownership") },
         { to: "authors", label: t("section.insights.authors") },
+        { to: "collaborators", label: t("section.insights.collaborators") },
         { to: "messages", label: t("section.insights.messages") },
       ]}
     />

@@ -4,8 +4,9 @@ import { useTranslation } from "react-i18next";
 import { api } from "@/api";
 import { Card, CardContent, CardHeader, CardTitle, CardValue } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { DateRangeBadge } from "@/components/DateRangeBadge";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
-import { useAppState } from "@/state/AppState";
+import { resolveDateRangeSince, useAppState } from "@/state/AppState";
 
 const TYPE_COLORS: Record<string, string> = {
   feat: "var(--color-chart-1)",
@@ -17,11 +18,12 @@ const TYPE_COLORS: Record<string, string> = {
 
 export function MessagesPage() {
   const { t } = useTranslation();
-  const { selectedRepoId } = useAppState();
+  const { selectedRepoId, dateRange } = useAppState();
+  const since = resolveDateRangeSince(dateRange);
 
   const stats = useQuery({
-    queryKey: ["msgStats", selectedRepoId],
-    queryFn: () => api.getCommitMessageStats(selectedRepoId!),
+    queryKey: ["msgStats", selectedRepoId, since],
+    queryFn: () => api.getCommitMessageStats(selectedRepoId!, since),
     enabled: selectedRepoId != null,
   });
 
@@ -40,7 +42,11 @@ export function MessagesPage() {
 
   return (
     <>
-      <PageHeader title={t("messages.title")} subtitle={t("messages.subtitle")} />
+      <PageHeader
+        title={t("messages.title")}
+        subtitle={t("messages.subtitle")}
+        actions={<DateRangeBadge />}
+      />
       <div className="flex flex-col gap-4 p-6">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Card>

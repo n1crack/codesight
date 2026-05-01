@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import { api } from "@/api";
 import {
@@ -12,89 +12,93 @@ import {
   CardValue,
 } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Select } from "@/components/ui/Select";
 import { Heatmap } from "@/components/Heatmap";
-import { PageHeader } from "@/components/PageHeader";
-import { useAppState } from "@/state/AppState";
+import { Sparkline } from "@/components/Sparkline";
+import { EmptyState, PageHeader } from "@/components/PageHeader";
+import { classesFor } from "@/lib/tagColors";
 import { formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { useAppState } from "@/state/AppState";
 
-export function HomePage() {
+export function TagOverviewPage() {
   const { t, i18n } = useTranslation();
-  const { myEmail, setMyEmail } = useAppState();
+  const { id } = useParams<{ id: string }>();
+  const tagId = Number(id);
+  const { setSelectedRepoId } = useAppState();
   const currentYear = new Date().getFullYear();
-  const filterEmail = myEmail || null;
-  const [tagFilter, setTagFilter] = useState<number | null>(null);
 
   const tags = useQuery({
     queryKey: ["repoTags"],
     queryFn: api.listRepoTags,
   });
 
-  const authors = useQuery({
-    queryKey: ["knownAuthors", tagFilter],
-    queryFn: () => api.listKnownAuthors(tagFilter),
+  const repos = useQuery({
+    queryKey: ["repositories"],
+    queryFn: api.listRepositories,
   });
 
   const summary = useQuery({
-    queryKey: ["globalSummary", filterEmail, tagFilter],
-    queryFn: () => api.getGlobalSummary(filterEmail, tagFilter),
+    queryKey: ["globalSummary", null, tagId],
+    queryFn: () => api.getGlobalSummary(null, tagId),
   });
 
   const heatmap = useQuery({
-    queryKey: ["globalHeatmap", currentYear, filterEmail, tagFilter],
-    queryFn: () => api.getGlobalHeatmap(currentYear, filterEmail, tagFilter),
+    queryKey: ["globalHeatmap", currentYear, null, tagId],
+    queryFn: () => api.getGlobalHeatmap(currentYear, null, tagId),
   });
 
   const recent = useQuery({
-    queryKey: ["globalRecent", filterEmail, tagFilter],
-    queryFn: () => api.getGlobalRecentCommits(20, filterEmail, tagFilter),
+    queryKey: ["globalRecent", null, tagId],
+    queryFn: () => api.getGlobalRecentCommits(20, null, tagId),
   });
 
-  const authorOptions = [
-    { value: "", label: t("home.filterAll") },
-    ...(authors.data ?? []).slice(0, 50).map((a) => ({
-      value: a.email,
-      label: `${a.name} (${a.commits})`,
-    })),
-  ];
+  const sparklines = useQuery({
+    queryKey: ["sparklines", repos.data?.length ?? 0],
+    queryFn: () => api.getReposSparklines(30),
+    enabled: !!repos.data?.length,
+  });
+  const sparkByRepo = useMemo(() => {
+    const map = new Map<number, number[]>();
+    sparklines.data?.forEach((s) => map.set(s.repoId, s.days));
+    return map;
+  }, [sparklines.data]);
 
-  const tagOptions = [
-    { value: "", label: t("home.filterAllTags") },
-    ...(tags.data ?? []).map((tag) => ({
-      value: String(tag.id),
-      label: `${tag.name} (${tag.repoCount})`,
-    })),
-  ];
+  const tag = tags.data?.find((tg) => tg.id === tagId);
+  const cls = tag ? classesFor(tag.color) : null;
+  const taggedRepos = useMemo(
+    () =>
+      (repos.data ?? []).filter((r) =>
+        r.tags.some((tg) => tg.id === tagId),
+      ),
+    [repos.data, tagId],
+  );
+
+  if (!Number.isFinite(tagId)) {
+    return (
+      <>
+        <PageHeader title={t("tagOverview.title")} />
+        <EmptyState>{t("common.noData")}</EmptyState>
+      </>
+    );
+  }
 
   return (
     <>
       <PageHeader
-        title={t("home.title")}
-        subtitle={t("home.subtitle")}
-        actions={
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                {t("home.filterTag")}
-              </span>
-              <Select<string>
-                value={tagFilter ? String(tagFilter) : ""}
-                onChange={(v) => setTagFilter(v ? Number(v) : null)}
-                options={tagOptions}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                {t("home.filterAuthor")}
-              </span>
-              <Select<string>
-                value={filterEmail ?? ""}
-                onChange={(v) => setMyEmail(v || null)}
-                options={authorOptions}
-              />
-            </div>
-          </div>
+        title={
+          tag ? (
+            <span className="inline-flex items-center gap-2">
+              {cls && (
+                <span className={cn("h-3 w-3 rounded-full", cls.dot)} />
+              )}
+              {tag.name}
+            </span>
+          ) as unknown as string
+            : t("tagOverview.title")
         }
+        subtitle={t("tagOverview.subtitle", {
+          count: tag?.repoCount ?? taggedRepos.length,
+        })}
       />
       <div className="flex flex-col gap-4 p-6">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -177,12 +181,62 @@ export function HomePage() {
 
         <Card>
           <CardHeader>
+            <CardTitle>{t("tagOverview.repos")}</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {!taggedRepos.length ? (
+              <p className="p-4 text-sm text-muted-foreground">
+                {t("tagOverview.noRepos")}
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {taggedRepos.map((r) => {
+                  const days = sparkByRepo.get(r.id);
+                  const total = days?.reduce((a, b) => a + b, 0) ?? 0;
+                  return (
+                    <li key={r.id}>
+                      <Link
+                        to="/activity"
+                        onClick={() => setSelectedRepoId(r.id)}
+                        className="flex items-center gap-3 p-3 hover:bg-accent/40"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium">
+                            {r.name}
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {r.path}
+                          </div>
+                        </div>
+                        {days && (
+                          <Sparkline
+                            values={days}
+                            width={104}
+                            height={16}
+                            className={
+                              total > 0
+                                ? "text-foreground/80"
+                                : "text-muted-foreground/60"
+                            }
+                          />
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>{t("home.recentActivity")}</CardTitle>
           </CardHeader>
           <CardContent>
             {recent.isPending ? (
               <div className="flex flex-col gap-1.5">
-                {Array.from({ length: 10 }).map((_, i) => (
+                {Array.from({ length: 8 }).map((_, i) => (
                   <Skeleton key={i} className="h-6 w-full" />
                 ))}
               </div>

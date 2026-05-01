@@ -471,38 +471,56 @@ function RepoGroupView({
   sparkByRepo: Map<number, number[]>;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const cls = group.tag ? classesFor(group.tag.color) : null;
   return (
     <div className="mb-1">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="group flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-sidebar-accent/30"
-      >
-        <ChevronRight
-          size={12}
-          className={cn(
-            "shrink-0 text-muted-foreground transition-transform",
-            !collapsed && "rotate-90",
-          )}
-        />
-        {cls ? (
-          <span className={cn("h-2 w-2 shrink-0 rounded-full", cls.dot)} />
-        ) : (
-          <span className="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40" />
-        )}
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate text-[11px] font-medium uppercase tracking-wide",
-            cls ? cls.text : "text-muted-foreground",
-          )}
+      <div className="group flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-sidebar-accent/30">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label="toggle"
+          className="flex shrink-0 items-center"
         >
-          {group.label}
-        </span>
-        <span className="text-[10px] tabular-nums text-muted-foreground">
-          {group.repos.length}
-        </span>
-      </button>
+          <ChevronRight
+            size={12}
+            className={cn(
+              "text-muted-foreground transition-transform",
+              !collapsed && "rotate-90",
+            )}
+          />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            if (group.tag) {
+              e.stopPropagation();
+              navigate(`/tags/${group.tag.id}`);
+            } else {
+              onToggle();
+            }
+          }}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          title={group.tag ? `Open #${group.tag.name} overview` : undefined}
+        >
+          {cls ? (
+            <span className={cn("h-2 w-2 shrink-0 rounded-full", cls.dot)} />
+          ) : (
+            <span className="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40" />
+          )}
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-[11px] font-medium uppercase tracking-wide",
+              cls ? cls.text : "text-muted-foreground",
+            )}
+          >
+            {group.label}
+          </span>
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {group.repos.length}
+          </span>
+        </button>
+      </div>
       {!collapsed && (
         <ul className="mt-0.5 flex flex-col gap-0.5 pl-2">
           {group.repos.map((r) => (

@@ -232,6 +232,17 @@ pub struct ContributorCohortPoint {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CoauthorPair {
+    pub a_name: String,
+    pub a_email: String,
+    pub b_name: String,
+    pub b_email: String,
+    pub joint_commits: u32,
+    pub last_collab_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GraphCommit {
     pub id: String,
     pub short_id: String,
@@ -971,10 +982,16 @@ fn classify_subject(subject: &str) -> Option<&'static str> {
 pub fn get_commit_message_stats_impl(
     db: &crate::db::Db,
     id: i64,
+    since: Option<String>,
 ) -> AppResult<CommitMessageStats> {
     let repo_meta = get_repository_impl(db, id)?;
     let head = current_head(&repo_meta.path);
-    cached(db, id, &head, "messageStats", move || {
+    let since_dt = since.as_deref().and_then(parse_date);
+    let cache_key = format!(
+        "messageStats:since={}",
+        since.as_deref().unwrap_or("")
+    );
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     let mut total = 0u32;
@@ -990,6 +1007,12 @@ pub fn get_commit_message_stats_impl(
             continue;
         }
         let commit = repo.find_commit(oid)?;
+        if let Some(s) = since_dt {
+            if commit_time(&commit) < s {
+                // Sort::TIME → newer first; once below cutoff, all subsequent are older
+                break;
+            }
+        }
         let subject = commit.summary().unwrap_or("");
         total = total.saturating_add(1);
         subject_total_len = subject_total_len.saturating_add(subject.chars().count() as u64);
@@ -1953,6 +1976,122 @@ pub fn get_churn_risk_impl(
     })
 }
 
+pub fn get_coauthor_pairs_impl(
+    db: &crate::db::Db,
+    id: i64,
+    limit: usize,
+) -> AppResult<Vec<CoauthorPair>> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("coauthors:{}", limit);
+    cached(db, id, &head, &cache_key, move || {
+        let repo = open(&repo_meta.path)?;
+
+        struct Acc {
+            a_name: String,
+            b_name: String,
+            count: u32,
+            last: DateTime<Utc>,
+        }
+        let mut by_pair: HashMap<(String, String), Acc> = HashMap::new();
+
+        let mut seen: std::collections::HashSet<git2::Oid> = std::collections::HashSet::new();
+        for oid in walk(&repo)? {
+            let oid = oid?;
+            if !seen.insert(oid) {
+                continue;
+            }
+            let commit = repo.find_commit(oid)?;
+            let author_email = commit.author().email().unwrap_or("").to_lowercase();
+            let author_name = commit.author().name().unwrap_or("unknown").to_string();
+            if author_email.is_empty() {
+                continue;
+            }
+            let body = commit.message().unwrap_or("");
+            let coauthors = parse_coauthored_by(body);
+            if coauthors.is_empty() {
+                continue;
+            }
+            let ts = commit_time(&commit);
+            for (cname, cemail) in coauthors {
+                let cemail_lower = cemail.to_lowercase();
+                if cemail_lower == author_email {
+                    continue;
+                }
+                let (a_name, a_email, b_name, b_email) = if author_email < cemail_lower {
+                    (
+                        author_name.clone(),
+                        author_email.clone(),
+                        cname,
+                        cemail_lower,
+                    )
+                } else {
+                    (
+                        cname,
+                        cemail_lower,
+                        author_name.clone(),
+                        author_email.clone(),
+                    )
+                };
+                let key = (a_email.clone(), b_email.clone());
+                let acc = by_pair.entry(key).or_insert(Acc {
+                    a_name: a_name.clone(),
+                    b_name: b_name.clone(),
+                    count: 0,
+                    last: ts,
+                });
+                acc.count = acc.count.saturating_add(1);
+                if ts > acc.last {
+                    acc.last = ts;
+                }
+            }
+        }
+
+        let mut out: Vec<CoauthorPair> = by_pair
+            .into_iter()
+            .map(|((a_email, b_email), acc)| CoauthorPair {
+                a_name: acc.a_name,
+                a_email,
+                b_name: acc.b_name,
+                b_email,
+                joint_commits: acc.count,
+                last_collab_at: acc.last.to_rfc3339(),
+            })
+            .collect();
+        out.sort_by(|x, y| {
+            y.joint_commits
+                .cmp(&x.joint_commits)
+                .then_with(|| y.last_collab_at.cmp(&x.last_collab_at))
+        });
+        out.truncate(limit);
+        Ok(out)
+    })
+}
+
+fn parse_coauthored_by(body: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for line in body.lines() {
+        let trimmed = line.trim();
+        if !trimmed.to_ascii_lowercase().starts_with("co-authored-by:") {
+            continue;
+        }
+        let rest = trimmed[15..].trim();
+        // Format: "Name <email>"
+        let lt = rest.find('<');
+        let gt = rest.rfind('>');
+        if let (Some(l), Some(g)) = (lt, gt) {
+            if g > l + 1 {
+                let name = rest[..l].trim().trim_end_matches(',').trim().to_string();
+                let email = rest[l + 1..g].trim().to_string();
+                if !email.is_empty() {
+                    out.push((name, email));
+                }
+            }
+        }
+    }
+    out
+}
+
 pub fn get_contributor_cohort_impl(
     db: &crate::db::Db,
     id: i64,
@@ -2297,11 +2436,25 @@ fn email_matches(commit: &git2::Commit<'_>, filter: &Option<String>) -> bool {
     }
 }
 
+fn filter_repos_by_tag(
+    repos: Vec<crate::repo::Repository>,
+    tag_id: Option<i64>,
+) -> Vec<crate::repo::Repository> {
+    match tag_id {
+        Some(t) => repos
+            .into_iter()
+            .filter(|r| r.tags.iter().any(|tag| tag.id == t))
+            .collect(),
+        None => repos,
+    }
+}
+
 pub fn get_global_summary_impl(
     db: &crate::db::Db,
     email: Option<String>,
+    tag_id: Option<i64>,
 ) -> AppResult<GlobalSummary> {
-    let repos = crate::repo::list_repositories_impl(db)?;
+    let repos = filter_repos_by_tag(crate::repo::list_repositories_impl(db)?, tag_id);
     let cutoff = Utc::now() - Duration::days(30);
 
     struct Acc {
@@ -2379,8 +2532,9 @@ pub fn get_global_heatmap_impl(
     db: &crate::db::Db,
     year: i32,
     email: Option<String>,
+    tag_id: Option<i64>,
 ) -> AppResult<HeatmapData> {
-    let repos = crate::repo::list_repositories_impl(db)?;
+    let repos = filter_repos_by_tag(crate::repo::list_repositories_impl(db)?, tag_id);
 
     let counts: HashMap<NaiveDate, u32> = repos
         .par_iter()
@@ -2460,8 +2614,9 @@ pub fn get_global_recent_commits_impl(
     db: &crate::db::Db,
     limit: usize,
     email: Option<String>,
+    tag_id: Option<i64>,
 ) -> AppResult<Vec<GlobalRecentCommit>> {
-    let repos = crate::repo::list_repositories_impl(db)?;
+    let repos = filter_repos_by_tag(crate::repo::list_repositories_impl(db)?, tag_id);
     let per_repo = limit.max(20);
 
     let lists: Vec<Vec<GlobalRecentCommit>> = repos
@@ -2517,8 +2672,11 @@ pub fn get_global_recent_commits_impl(
     Ok(all)
 }
 
-pub fn list_known_authors_impl(db: &crate::db::Db) -> AppResult<Vec<Contributor>> {
-    let repos = crate::repo::list_repositories_impl(db)?;
+pub fn list_known_authors_impl(
+    db: &crate::db::Db,
+    tag_id: Option<i64>,
+) -> AppResult<Vec<Contributor>> {
+    let repos = filter_repos_by_tag(crate::repo::list_repositories_impl(db)?, tag_id);
 
     struct Acc {
         name: String,

@@ -12,6 +12,7 @@ import type {
   CommitMessageStats,
   Contributor,
   ChurnRiskFile,
+  CoauthorPair,
   CommitDetail,
   ContributorCohortPoint,
   ContributorDetail,
@@ -74,8 +75,11 @@ export const api = {
     invoke<FileHotspot[]>("get_file_hotspots", { id, limit, since: since ?? null }),
   getActivityPatterns: (id: number) =>
     invoke<ActivityPatterns>("get_activity_patterns", { id }),
-  getCommitMessageStats: (id: number) =>
-    invoke<CommitMessageStats>("get_commit_message_stats", { id }),
+  getCommitMessageStats: (id: number, since?: string | null) =>
+    invoke<CommitMessageStats>("get_commit_message_stats", {
+      id,
+      since: since ?? null,
+    }),
   listTags: (id: number) => invoke<TagInfo[]>("list_tags", { id }),
   getReposSparklines: (days: number) =>
     invoke<RepoSparkline[]>("get_repos_sparklines", { days }),
@@ -103,16 +107,35 @@ export const api = {
     invoke<GraphCommit[]>("get_commit_graph", { id, limit }),
   getCommitDetail: (id: number, oid: string) =>
     invoke<CommitDetail>("get_commit_detail", { id, oid }),
-  getGlobalSummary: (email?: string | null) =>
-    invoke<GlobalSummary>("get_global_summary", { email: email ?? null }),
-  getGlobalHeatmap: (year: number, email?: string | null) =>
-    invoke<HeatmapData>("get_global_heatmap", { year, email: email ?? null }),
-  getGlobalRecentCommits: (limit: number, email?: string | null) =>
+  getGlobalSummary: (email?: string | null, tagId?: number | null) =>
+    invoke<GlobalSummary>("get_global_summary", {
+      email: email ?? null,
+      tagId: tagId ?? null,
+    }),
+  getGlobalHeatmap: (
+    year: number,
+    email?: string | null,
+    tagId?: number | null,
+  ) =>
+    invoke<HeatmapData>("get_global_heatmap", {
+      year,
+      email: email ?? null,
+      tagId: tagId ?? null,
+    }),
+  getGlobalRecentCommits: (
+    limit: number,
+    email?: string | null,
+    tagId?: number | null,
+  ) =>
     invoke<GlobalRecentCommit[]>("get_global_recent_commits", {
       limit,
       email: email ?? null,
+      tagId: tagId ?? null,
     }),
-  listKnownAuthors: () => invoke<Contributor[]>("list_known_authors"),
+  listKnownAuthors: (tagId?: number | null) =>
+    invoke<Contributor[]>("list_known_authors", { tagId: tagId ?? null }),
+  getCoauthorPairs: (id: number, limit: number) =>
+    invoke<CoauthorPair[]>("get_coauthor_pairs", { id, limit }),
   getFileCouplings: (id: number, limit: number, since?: string | null) =>
     invoke<FileCoupling[]>("get_file_couplings", {
       id,

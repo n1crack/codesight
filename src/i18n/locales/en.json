@@ -27,7 +27,8 @@
       "hotspots": "Hotspots",
       "ownership": "Ownership",
       "authors": "Authors",
-      "messages": "Messages"
+      "messages": "Messages",
+      "collaborators": "Collaborators"
     },
     "graph": {
       "title": "Graph",
@@ -229,6 +230,8 @@
     "subtitle": "Across all repositories",
     "filterAll": "All authors",
     "filterAuthor": "Author",
+    "filterTag": "Tag",
+    "filterAllTags": "All tags",
     "totalRepos": "Repositories",
     "totalCommits": "Total commits",
     "last30": "Commits last 30d",
@@ -236,6 +239,20 @@
     "authors": "Authors",
     "globalHeatmap": "Combined heatmap",
     "recentActivity": "Recent activity"
+  },
+  "tagOverview": {
+    "title": "Tag",
+    "subtitle": "Aggregated stats across {{count}} repositories",
+    "edit": "Edit assignments",
+    "repos": "Repositories",
+    "noRepos": "No repositories tagged yet"
+  },
+  "collaborators": {
+    "title": "Collaborators",
+    "subtitle": "Co-authored commit pairs (parsed from Co-Authored-By trailers)",
+    "noData": "No co-authored commits found.",
+    "jointCommits": "{{count}} joint commits",
+    "lastCollab": "Last: {{date}}"
   },
   "commit": {
     "title": "Commit",

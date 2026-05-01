@@ -27,7 +27,8 @@
       "hotspots": "Sıcak Noktalar",
       "ownership": "Sahiplik",
       "authors": "Yazarlar",
-      "messages": "Mesajlar"
+      "messages": "Mesajlar",
+      "collaborators": "İşbirlikçiler"
     },
     "graph": {
       "title": "Grafik",
@@ -229,6 +230,8 @@
     "subtitle": "Tüm depolar üzerinden",
     "filterAll": "Tüm yazarlar",
     "filterAuthor": "Yazar",
+    "filterTag": "Etiket",
+    "filterAllTags": "Tüm etiketler",
     "totalRepos": "Depo",
     "totalCommits": "Toplam commit",
     "last30": "Son 30 gün",
@@ -236,6 +239,20 @@
     "authors": "Yazar",
     "globalHeatmap": "Birleşik ısı haritası",
     "recentActivity": "Son etkinlik"
+  },
+  "tagOverview": {
+    "title": "Etiket",
+    "subtitle": "{{count}} depo üzerinden toplu istatistikler",
+    "edit": "Atamaları düzenle",
+    "repos": "Depolar",
+    "noRepos": "Bu etikete henüz depo atanmadı"
+  },
+  "collaborators": {
+    "title": "İşbirlikçiler",
+    "subtitle": "Birlikte yazılan commit'ler (Co-Authored-By trailer'larından)",
+    "noData": "Co-authored commit bulunamadı.",
+    "jointCommits": "{{count}} ortak commit",
+    "lastCollab": "Son: {{date}}"
   },
   "commit": {
     "title": "Commit",

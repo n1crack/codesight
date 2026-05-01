@@ -219,6 +219,15 @@ export interface ContributorCohortPoint {
   leaving: number;
 }
 
+export interface CoauthorPair {
+  aName: string;
+  aEmail: string;
+  bName: string;
+  bEmail: string;
+  jointCommits: number;
+  lastCollabAt: string;
+}
+
 export interface GraphRef {
   kind: "HEAD" | "head" | "remote" | "tag";
   name: string;
