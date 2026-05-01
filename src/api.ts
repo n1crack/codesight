@@ -12,6 +12,7 @@ import type {
   CommitMessageStats,
   Contributor,
   DiscoveredRepo,
+  GitConfigView,
   AuthorSpecialization,
   ChurnRiskFile,
   CoauthorPair,
@@ -45,6 +46,10 @@ export const api = {
   removeRepository: (id: number) => invoke<void>("remove_repository", { id }),
   reorderRepositories: (orderedIds: number[]) =>
     invoke<void>("reorder_repositories", { orderedIds }),
+  openInIde: (ide: string, path: string) =>
+    invoke<void>("open_in_ide", { ide, path }),
+  getGitConfig: (id: number) =>
+    invoke<GitConfigView>("get_git_config", { id }),
   refreshRepo: (id: number) => invoke<void>("refresh_repo", { id }),
   // Repo tags (organization labels)
   listRepoTags: () => invoke<TagWithStats[]>("list_repo_tags"),

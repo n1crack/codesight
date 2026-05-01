@@ -72,6 +72,11 @@ const CollaboratorsPage = lazy(() =>
 const QualityPage = lazy(() =>
   import("@/pages/QualityPage").then((m) => ({ default: m.QualityPage })),
 );
+const RepoConfigPage = lazy(() =>
+  import("@/pages/RepoConfigPage").then((m) => ({
+    default: m.RepoConfigPage,
+  })),
+);
 const TagOverviewPage = lazy(() =>
   import("@/pages/TagOverviewPage").then((m) => ({
     default: m.TagOverviewPage,
@@ -134,6 +139,7 @@ const router = createBrowserRouter([
           { path: "messages", element: <MessagesPage /> },
           { path: "collaborators", element: <CollaboratorsPage /> },
           { path: "quality", element: <QualityPage /> },
+          { path: "config", element: <RepoConfigPage /> },
         ],
       },
       {

@@ -10,6 +10,7 @@ import {
 import type { ThemedToken } from "shiki";
 
 import { Tabs } from "@/components/ui/Tabs";
+import { OpenInIdeButton } from "@/components/OpenInIdeButton";
 import { highlightLines, langForPath } from "@/lib/highlight";
 import { useAppState } from "@/state/AppState";
 import { cn } from "@/lib/utils";
@@ -141,42 +142,51 @@ function FileBlock({
 
   return (
     <div className="overflow-hidden rounded-lg border bg-card">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={!isClosed}
+      <div
         className={cn(
-          "flex w-full items-center gap-2 border-b bg-muted/30 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/50",
+          "flex w-full items-center gap-2 border-b bg-muted/30 px-3 py-2 text-sm",
           isClosed && "border-b-transparent",
         )}
       >
-        <ChevronDown
-          size={14}
-          className={cn(
-            "shrink-0 text-muted-foreground transition-transform",
-            isClosed && "-rotate-90",
-          )}
-        />
-        <Icon size={14} />
-        <span
-          className={cn(
-            "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-            STATUS_COLOR[file.status] ?? "text-muted-foreground",
-          )}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!isClosed}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left transition-colors hover:opacity-80"
         >
-          {file.status}
-        </span>
-        <span className="truncate font-mono text-xs">{path}</span>
-        {file.oldPath && file.newPath && file.oldPath !== file.newPath && (
-          <span className="truncate font-mono text-xs text-muted-foreground">
-            ← {file.oldPath}
+          <ChevronDown
+            size={14}
+            className={cn(
+              "shrink-0 text-muted-foreground transition-transform",
+              isClosed && "-rotate-90",
+            )}
+          />
+          <Icon size={14} />
+          <span
+            className={cn(
+              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+              STATUS_COLOR[file.status] ?? "text-muted-foreground",
+            )}
+          >
+            {file.status}
           </span>
-        )}
-        <span className="ml-auto flex shrink-0 gap-2 text-xs">
+          <span className="truncate font-mono text-xs">{path}</span>
+          {file.oldPath && file.newPath && file.oldPath !== file.newPath && (
+            <span className="truncate font-mono text-xs text-muted-foreground">
+              ← {file.oldPath}
+            </span>
+          )}
+        </button>
+        <span className="flex shrink-0 items-center gap-2 text-xs">
           <span className="text-emerald-500">+{file.insertions}</span>
           <span className="text-rose-500">-{file.deletions}</span>
+          {(file.newPath || file.oldPath) && (
+            <OpenInIdeButton
+              filePath={file.newPath ?? file.oldPath ?? undefined}
+            />
+          )}
         </span>
-      </button>
+      </div>
       {!isClosed && (
         <FileBody file={file} fileKey={fileKey} viewMode={viewMode} />
       )}

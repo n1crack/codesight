@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { PageHeader } from "@/components/PageHeader";
 import { SUPPORTED_LANGS } from "@/i18n";
-import { useAppState } from "@/state/AppState";
+import { IDE_OPTIONS, useAppState, type IdeChoice } from "@/state/AppState";
 
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
-  const { theme, setTheme } = useAppState();
+  const { theme, setTheme, ide, setIde } = useAppState();
 
   return (
     <>
@@ -44,6 +44,24 @@ export function SettingsPage() {
                   { value: "system", label: t("settings.themeSystem") },
                 ]}
               />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("settings.ide")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select<IdeChoice>
+                value={ide}
+                onChange={setIde}
+                options={IDE_OPTIONS.map((o) => ({
+                  value: o.value,
+                  label: o.label,
+                }))}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("settings.ideHint")}
+              </p>
             </CardContent>
           </Card>
         </div>

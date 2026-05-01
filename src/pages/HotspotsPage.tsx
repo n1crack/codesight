@@ -13,6 +13,7 @@ import { useAppState } from "@/state/AppState";
 import { Link } from "react-router-dom";
 
 import { DateRangeBadge } from "@/components/DateRangeBadge";
+import { OpenInIdeButton } from "@/components/OpenInIdeButton";
 import { cn } from "@/lib/utils";
 import { resolveDateRangeSince } from "@/state/AppState";
 import type { ChurnRiskLevel } from "@/types";
@@ -90,13 +91,22 @@ function FilesTab({ repoId }: { repoId: number }) {
             {q.data.map((h) => {
               const ratio = h.commits / max;
               return (
-                <li key={h.path} className="flex items-center gap-3 p-3">
+                <li
+                  key={h.path}
+                  className="group flex items-center gap-3 p-3"
+                >
                   <div className="min-w-0 flex-1">
-                    <div
-                      className="truncate font-mono text-xs"
-                      title={h.path}
-                    >
-                      {h.path}
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="truncate font-mono text-xs"
+                        title={h.path}
+                      >
+                        {h.path}
+                      </span>
+                      <OpenInIdeButton
+                        filePath={h.path}
+                        className="opacity-0 group-hover:opacity-100"
+                      />
                     </div>
                     <div className="mt-1 flex gap-3 text-[11px] text-muted-foreground">
                       <span className="text-emerald-500">+{h.additions}</span>
@@ -316,7 +326,10 @@ function RiskTab({ repoId }: { repoId: number }) {
                     ? "hotspotsPage.riskMedium"
                     : "hotspotsPage.riskLow";
               return (
-                <li key={f.path} className="flex items-start gap-3 p-3">
+                <li
+                  key={f.path}
+                  className="group flex items-start gap-3 p-3"
+                >
                   <span
                     className={cn(
                       "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
@@ -326,8 +339,17 @@ function RiskTab({ repoId }: { repoId: number }) {
                     {t(levelKey)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-mono text-xs" title={f.path}>
-                      {f.path}
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="truncate font-mono text-xs"
+                        title={f.path}
+                      >
+                        {f.path}
+                      </span>
+                      <OpenInIdeButton
+                        filePath={f.path}
+                        className="opacity-0 group-hover:opacity-100"
+                      />
                     </div>
                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
                       <span>

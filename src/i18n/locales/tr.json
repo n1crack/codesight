@@ -29,7 +29,8 @@
       "authors": "Yazarlar",
       "messages": "Mesajlar",
       "collaborators": "İşbirlikçiler",
-      "quality": "Kalite & Güvenlik"
+      "quality": "Kalite & Güvenlik",
+      "config": "Yapılandırma"
     },
     "graph": {
       "title": "Grafik",
@@ -511,7 +512,34 @@
     "theme": "Tema",
     "themeLight": "Açık",
     "themeDark": "Koyu",
-    "themeSystem": "Sistem"
+    "themeSystem": "Sistem",
+    "ide": "Varsayılan editör",
+    "ideHint": "Uygulama içindeki \"Editörde aç\" butonları bunu kullanır. Binary $PATH'te olmalı (örn. `code`, `cursor`)."
+  },
+  "openInIde": "Editörde aç",
+  "repoConfig": {
+    "title": "Repo yapılandırması",
+    "subtitle": "Yerel git yapılandırması (salt okunur)",
+    "headBranch": "HEAD dalı",
+    "userName": "user.name",
+    "userEmail": "user.email",
+    "globalUserName": "Global user.name",
+    "globalUserEmail": "Global user.email",
+    "defaultBranch": "init.defaultBranch",
+    "commitGpgSign": "commit.gpgSign",
+    "coreAutocrlf": "core.autocrlf",
+    "coreFilemode": "core.filemode",
+    "coreIgnorecase": "core.ignorecase",
+    "remotes": "Uzaktakiler",
+    "noRemotes": "Uzakta tanımlı değil",
+    "fetchUrl": "fetch",
+    "pushUrl": "push",
+    "hooks": "Hooks",
+    "noHooks": "Yüklü hook yok (örnekler atlandı)",
+    "executable": "çalıştırılabilir",
+    "notExecutable": "çalıştırılamaz",
+    "openRepo": "Repoyu editörde aç",
+    "unset": "—"
   },
   "errors": {
     "notARepo": "Seçilen klasör bir git deposu değil.",

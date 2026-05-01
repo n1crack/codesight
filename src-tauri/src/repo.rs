@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use chrono::Utc;
 use git2::Repository as GitRepository;
@@ -183,6 +184,178 @@ pub fn reorder_repositories_impl(db: &Db, ordered_ids: Vec<i64>) -> AppResult<()
         tx.commit()?;
         Ok(())
     })
+}
+
+// ---------- IDE open ----------
+
+// Whitelist of IDE binaries we will spawn. Covered:
+// vscode/cursor/sublime/jetbrains family/zed/helix/neovim/emacs/system-default
+const ALLOWED_IDE_BINS: &[&str] = &[
+    "code",
+    "code-insiders",
+    "cursor",
+    "subl",
+    "idea",
+    "webstorm",
+    "phpstorm",
+    "pycharm",
+    "rubymine",
+    "rustrover",
+    "goland",
+    "clion",
+    "datagrip",
+    "rider",
+    "fleet",
+    "zed",
+    "hx",
+];
+
+pub fn open_in_ide_impl(ide: &str, path: &str) -> AppResult<()> {
+    if ide == "system" {
+        #[cfg(target_os = "macos")]
+        let result = Command::new("open").arg(path).spawn();
+        #[cfg(target_os = "windows")]
+        let result = Command::new("cmd").args(["/C", "start", "", path]).spawn();
+        #[cfg(all(unix, not(target_os = "macos")))]
+        let result = Command::new("xdg-open").arg(path).spawn();
+        result.map_err(|e| AppError::Other(format!("system open failed: {}", e)))?;
+        return Ok(());
+    }
+    if !ALLOWED_IDE_BINS.contains(&ide) {
+        return Err(AppError::Other(format!("unsupported ide: {}", ide)));
+    }
+    Command::new(ide)
+        .arg(path)
+        .spawn()
+        .map_err(|e| AppError::Other(format!("could not launch {}: {}", ide, e)))?;
+    Ok(())
+}
+
+// ---------- Git config (view-only) ----------
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitRemote {
+    pub name: String,
+    pub url: Option<String>,
+    pub push_url: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitHook {
+    pub name: String,
+    pub path: String,
+    pub executable: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitConfigView {
+    pub repo_path: String,
+    pub head_branch: Option<String>,
+    pub user_name: Option<String>,
+    pub user_email: Option<String>,
+    pub global_user_name: Option<String>,
+    pub global_user_email: Option<String>,
+    pub default_branch: Option<String>,
+    pub commit_gpg_sign: Option<String>,
+    pub core_autocrlf: Option<String>,
+    pub core_filemode: Option<String>,
+    pub core_ignorecase: Option<String>,
+    pub remotes: Vec<GitRemote>,
+    pub hooks: Vec<GitHook>,
+}
+
+pub fn get_git_config_impl(db: &Db, id: i64) -> AppResult<GitConfigView> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = GitRepository::open(&repo_meta.path)
+        .map_err(|e| AppError::Other(format!("open repo failed: {}", e)))?;
+
+    let local = repo.config().ok();
+    let global = git2::Config::open_default().ok();
+
+    let read_local = |key: &str| -> Option<String> {
+        local.as_ref().and_then(|c| c.get_string(key).ok())
+    };
+    let read_global = |key: &str| -> Option<String> {
+        global.as_ref().and_then(|c| c.get_string(key).ok())
+    };
+
+    let head_branch = repo
+        .head()
+        .ok()
+        .and_then(|h| h.shorthand().map(|s| s.to_string()));
+
+    let mut remotes: Vec<GitRemote> = Vec::new();
+    if let Ok(names) = repo.remotes() {
+        for name in names.iter().flatten() {
+            if let Ok(remote) = repo.find_remote(name) {
+                remotes.push(GitRemote {
+                    name: name.to_string(),
+                    url: remote.url().map(|s| s.to_string()),
+                    push_url: remote.pushurl().map(|s| s.to_string()),
+                });
+            }
+        }
+    }
+
+    let mut hooks: Vec<GitHook> = Vec::new();
+    let hooks_dir = PathBuf::from(&repo_meta.path).join(".git").join("hooks");
+    if hooks_dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&hooks_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if !path.is_file() {
+                    continue;
+                }
+                let name = match path.file_name().and_then(|s| s.to_str()) {
+                    Some(s) => s.to_string(),
+                    None => continue,
+                };
+                if name.ends_with(".sample") {
+                    continue;
+                }
+                let executable = is_executable(&path);
+                hooks.push(GitHook {
+                    name,
+                    path: path.display().to_string(),
+                    executable,
+                });
+            }
+        }
+    }
+    hooks.sort_by(|a, b| a.name.cmp(&b.name));
+
+    Ok(GitConfigView {
+        repo_path: repo_meta.path.clone(),
+        head_branch,
+        user_name: read_local("user.name"),
+        user_email: read_local("user.email"),
+        global_user_name: read_global("user.name"),
+        global_user_email: read_global("user.email"),
+        default_branch: read_local("init.defaultbranch")
+            .or_else(|| read_global("init.defaultbranch")),
+        commit_gpg_sign: read_local("commit.gpgsign"),
+        core_autocrlf: read_local("core.autocrlf"),
+        core_filemode: read_local("core.filemode"),
+        core_ignorecase: read_local("core.ignorecase"),
+        remotes,
+        hooks,
+    })
+}
+
+#[cfg(unix)]
+fn is_executable(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(path)
+        .map(|m| m.permissions().mode() & 0o111 != 0)
+        .unwrap_or(false)
+}
+
+#[cfg(not(unix))]
+fn is_executable(_path: &Path) -> bool {
+    true // assume executable on non-unix
 }
 
 pub fn scan_folder_impl(db: &Db, folder: &str) -> AppResult<Vec<Repository>> {

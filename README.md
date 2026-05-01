@@ -48,7 +48,10 @@ Opinionated reads of the same git data — judgment baked in, with the formula a
 - **Hotspots** — four views: Files / Directories / Couplings (pairs that change together) / **Churn Risk** (file-level risk = churn × ownership concentration × recency)
 - **Ownership** — bus factor, top author shares, per-file primary author, and **Concentration Alerts**: bus-factor-of-one warnings, ≥80% single-owner files, alumni contributors (≥90 days idle)
 - **Authors** — full contributor list with personal drill-down; **Contributor Volatility** stacked area chart shows active / new / returning authors per month
+- **Collaborators** — co-authored commit pairs parsed from `Co-Authored-By` trailers
 - **Messages** — conventional commit type distribution + avg subject length
+- **Quality & Security** — five-group repo scan (hygiene · secret exposure · dependency hygiene · code hygiene · authorship) + a prioritized **Suggestions** list. Optional **Deep History Secret Scan** walks every commit blob with a live progress bar. The Quality dimensions feed back into the Health score (50/50 weighted with activity health).
+- **Config** — read-only view of `user.name` / `user.email` (local + global fallback), `init.defaultBranch`, `commit.gpgSign`, core flags, remotes (fetch / push URLs), and installed `.git/hooks` with executable status
 
 ### 3. Graph — *git graph intelligence*
 
@@ -62,9 +65,10 @@ DAG-aware analysis: structure, refs, ancestry.
 
 ## Cross-repo
 
-- **Home** — combined contribution heatmap across all repos, aggregated stats (total commits, last-30-day activity, active repo count, distinct authors), cross-repo activity feed with repo badges, per-author filter
+- **Home** — combined contribution heatmap across all repos, aggregated stats (total commits, last-30-day activity, active repo count, distinct authors), cross-repo activity feed with repo badges, per-author and per-tag filter
 - **Search** — multi-filter commit search (message text, author email, date range, file path)
 - **Compare** — multi-select repos, side-by-side stats and merged monthly chart
+- **Tag overview** (`/tags/:id`) — aggregated stats across every repo carrying a given tag, with the repo list inline
 
 ---
 
@@ -79,9 +83,14 @@ DAG-aware analysis: structure, refs, ancestry.
 
 - **English / Turkish** (react-i18next; default English, easy to extend)
 - **Light / dark / system theme** with custom OKLCH palette, themed scrollbars
-- **`⌘K` / `Ctrl K`** command palette — jump to any page (top-level + sub-tabs) or repo
-- **Resizable, scrollable sidebar** — drag the divider, double-click to reset, no scroll until manually constrained
-- **Repo filter** appears when 6+ repos
+- **`⌘K` / `Ctrl K`** command palette — jump to any page (top-level + sub-tabs) or repo, with live match highlighting on results
+- **Resizable, scrollable sidebar** — drag the divider, double-click to reset; tag-grouped repo list with collapsible groups
+- **Drag-and-drop tag organization** (`@dnd-kit`) — reorder repos within a group or move them between tag groups; portaled drag overlay follows the cursor anywhere on screen, optimistic cache update keeps the drop landing exactly where you released it
+- **OS-level folder drop** — drag any folder from Finder / Explorer onto the window. Auto-discovers nested git repos, opens a confirmation modal with optional tag picker (with inline "create new tag"), or surfaces a "no `.git` found" dialog if nothing matched
+- **Inline tag creation** — every place that asks "which tag?" lets you make one on the spot with name + color
+- **Side-by-side diff** — independent left/right horizontal scroll per pane, vertical alignment preserved; syntax highlighted via Shiki
+- **Open-in-editor** — pick your default editor in Settings (VS Code, Cursor, Sublime, Zed, JetBrains family, Helix, system-default), then click the `↗` next to any file path in Hotspots / Diff / Quality / etc.
+- **Repo filter** appears when 6+ repos (supports `#tag` syntax)
 - **Refresh button** in the top bar invalidates all cached queries
 - **Custom chart tooltips** — instant, themed, performant (mouse-position update is DOM-only, never re-renders React)
 - **Click any commit hash anywhere** to drill into the commit detail page
@@ -96,7 +105,9 @@ DAG-aware analysis: structure, refs, ancestry.
 - Tailwind CSS v4 (manual UI primitives, no shadcn CLI)
 - react-router-dom v7 (nested routes for sections)
 - @tanstack/react-query
+- @dnd-kit/core + sortable + utilities (sidebar drag-and-drop)
 - recharts + custom SVG (heatmaps, DAG, sparklines)
+- shiki (lazy-loaded, per-language chunks for diff syntax highlighting)
 - lucide-react
 - react-i18next + i18next-browser-languagedetector
 - Lazy-loaded routes (manualChunks: recharts / i18n / react / tanstack)
@@ -104,9 +115,11 @@ DAG-aware analysis: structure, refs, ancestry.
 **Backend**
 - Tauri 2
 - git2 with `vendored-libgit2`
-- rusqlite with bundled SQLite
+- rusqlite with bundled SQLite (incl. analysis cache keyed on HEAD oid)
 - rayon (cross-repo parallelism)
 - chrono, walkdir, parking_lot, anyhow, thiserror
+- Native OS file-drop via `Webview::onDragDropEvent`
+- Editor launch via `std::process::Command` with a strict whitelist of binaries
 
 **Plugins**
 - `tauri-plugin-dialog` (file picker)

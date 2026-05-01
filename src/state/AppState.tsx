@@ -2,6 +2,28 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 type Theme = "light" | "dark" | "system";
 
+export const IDE_OPTIONS = [
+  { value: "system", label: "System default" },
+  { value: "code", label: "VS Code" },
+  { value: "code-insiders", label: "VS Code Insiders" },
+  { value: "cursor", label: "Cursor" },
+  { value: "subl", label: "Sublime Text" },
+  { value: "zed", label: "Zed" },
+  { value: "idea", label: "IntelliJ IDEA" },
+  { value: "webstorm", label: "WebStorm" },
+  { value: "phpstorm", label: "PhpStorm" },
+  { value: "pycharm", label: "PyCharm" },
+  { value: "rubymine", label: "RubyMine" },
+  { value: "rustrover", label: "RustRover" },
+  { value: "goland", label: "GoLand" },
+  { value: "clion", label: "CLion" },
+  { value: "rider", label: "Rider" },
+  { value: "fleet", label: "Fleet" },
+  { value: "hx", label: "Helix" },
+] as const;
+export type IdeChoice = (typeof IDE_OPTIONS)[number]["value"];
+const VALID_IDES: readonly string[] = IDE_OPTIONS.map((o) => o.value);
+
 export type DateRangePreset =
   | "all"
   | "7d"
@@ -34,6 +56,8 @@ type AppContextValue = {
   setMyEmail: (email: string | null) => void;
   dateRange: DateRangePreset;
   setDateRange: (r: DateRangePreset) => void;
+  ide: IdeChoice;
+  setIde: (i: IdeChoice) => void;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -42,6 +66,12 @@ const THEME_KEY = "codesight.theme";
 const REPO_KEY = "codesight.selectedRepoId";
 const EMAIL_KEY = "codesight.myEmail";
 const DATE_RANGE_KEY = "codesight.dateRange";
+const IDE_KEY = "codesight.ide";
+
+function readIde(): IdeChoice {
+  const v = localStorage.getItem(IDE_KEY) ?? "";
+  return (VALID_IDES.includes(v) ? v : "system") as IdeChoice;
+}
 
 const VALID_RANGES: DateRangePreset[] = ["all", "7d", "30d", "90d", "6m", "1y"];
 
@@ -85,6 +115,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [dateRange, setDateRangeState] = useState<DateRangePreset>(() =>
     readDateRange(),
   );
+  const [ide, setIdeState] = useState<IdeChoice>(() => readIde());
 
   useEffect(() => {
     applyTheme(theme);
@@ -116,6 +147,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(DATE_RANGE_KEY, r);
   };
 
+  const setIde = (i: IdeChoice) => {
+    setIdeState(i);
+    localStorage.setItem(IDE_KEY, i);
+  };
+
   const value = useMemo<AppContextValue>(
     () => ({
       selectedRepoId,
@@ -126,8 +162,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setMyEmail,
       dateRange,
       setDateRange,
+      ide,
+      setIde,
     }),
-    [selectedRepoId, theme, myEmail, dateRange],
+    [selectedRepoId, theme, myEmail, dateRange, ide],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

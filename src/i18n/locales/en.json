@@ -29,7 +29,8 @@
       "authors": "Authors",
       "messages": "Messages",
       "collaborators": "Collaborators",
-      "quality": "Quality"
+      "quality": "Quality",
+      "config": "Config"
     },
     "graph": {
       "title": "Graph",
@@ -511,7 +512,34 @@
     "theme": "Theme",
     "themeLight": "Light",
     "themeDark": "Dark",
-    "themeSystem": "System"
+    "themeSystem": "System",
+    "ide": "Default editor",
+    "ideHint": "Used by the \"Open in editor\" buttons throughout the app. The binary must be on your $PATH (e.g. `code`, `cursor`)."
+  },
+  "openInIde": "Open in editor",
+  "repoConfig": {
+    "title": "Repo config",
+    "subtitle": "Local git configuration (read-only)",
+    "headBranch": "HEAD branch",
+    "userName": "user.name",
+    "userEmail": "user.email",
+    "globalUserName": "Global user.name",
+    "globalUserEmail": "Global user.email",
+    "defaultBranch": "init.defaultBranch",
+    "commitGpgSign": "commit.gpgSign",
+    "coreAutocrlf": "core.autocrlf",
+    "coreFilemode": "core.filemode",
+    "coreIgnorecase": "core.ignorecase",
+    "remotes": "Remotes",
+    "noRemotes": "No remotes configured",
+    "fetchUrl": "fetch",
+    "pushUrl": "push",
+    "hooks": "Hooks",
+    "noHooks": "No installed hooks (samples skipped)",
+    "executable": "executable",
+    "notExecutable": "not executable",
+    "openRepo": "Open repo in editor",
+    "unset": "—"
   },
   "errors": {
     "notARepo": "The selected folder is not a git repository.",

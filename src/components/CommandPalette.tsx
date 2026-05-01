@@ -54,6 +54,8 @@ const SUB_PAGES: Array<{
   { to: "/insights/ownership", parentKey: "nav.insights", childKey: "section.insights.ownership", icon: Brain },
   { to: "/insights/authors", parentKey: "nav.insights", childKey: "section.insights.authors", icon: Brain },
   { to: "/insights/messages", parentKey: "nav.insights", childKey: "section.insights.messages", icon: Brain },
+  { to: "/insights/quality", parentKey: "nav.insights", childKey: "section.insights.quality", icon: Brain },
+  { to: "/insights/config", parentKey: "nav.insights", childKey: "section.insights.config", icon: Brain },
   { to: "/graph/dag", parentKey: "nav.graph", childKey: "section.graph.dag", icon: GitGraph },
   { to: "/graph/branches", parentKey: "nav.graph", childKey: "section.graph.branches", icon: GitGraph },
   { to: "/graph/releases", parentKey: "nav.graph", childKey: "section.graph.releases", icon: GitGraph },

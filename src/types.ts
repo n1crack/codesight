@@ -37,6 +37,34 @@ export interface DiscoveredRepo {
   name: string;
 }
 
+export interface GitRemote {
+  name: string;
+  url: string | null;
+  pushUrl: string | null;
+}
+
+export interface GitHook {
+  name: string;
+  path: string;
+  executable: boolean;
+}
+
+export interface GitConfigView {
+  repoPath: string;
+  headBranch: string | null;
+  userName: string | null;
+  userEmail: string | null;
+  globalUserName: string | null;
+  globalUserEmail: string | null;
+  defaultBranch: string | null;
+  commitGpgSign: string | null;
+  coreAutocrlf: string | null;
+  coreFilemode: string | null;
+  coreIgnorecase: string | null;
+  remotes: GitRemote[];
+  hooks: GitHook[];
+}
+
 export interface RepoSummary {
   repo: Repository;
   total_commits: number;
