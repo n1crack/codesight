@@ -28,7 +28,15 @@ import { Select } from "@/components/ui/Select";
 import { useAppState } from "@/state/AppState";
 import { classesFor } from "@/lib/tagColors";
 import { cn } from "@/lib/utils";
-import type { DiscoveredRepo, Repository, Tag } from "@/types";
+import type {
+  DiscoveredRepo,
+  Repository,
+  Tag,
+  TagColor,
+  TagWithStats,
+} from "@/types";
+import { Input } from "@/components/ui/Input";
+import { TAG_COLORS } from "@/lib/tagColors";
 
 const GLOBAL_NAV = [
   { to: "/", icon: Home, key: "nav.home" },
@@ -96,38 +104,54 @@ function useCollapsedGroups() {
 
 function buildGroups(
   repos: Repository[],
+  allTags: TagWithStats[],
   untaggedLabel: string,
 ): RepoGroup[] {
-  const groupMap = new Map<number, { tag: Tag; repos: Repository[] }>();
-  const untagged: Repository[] = [];
+  // Seed with every defined tag so empty groups still render as drop targets.
+  const groupMap = new Map<number, RepoGroup>();
+  for (const tg of allTags) {
+    const tag: Tag = {
+      id: tg.id,
+      name: tg.name,
+      color: tg.color,
+      sort_order: tg.sortOrder,
+    };
+    groupMap.set(tg.id, {
+      key: `tag-${tg.id}`,
+      tag,
+      label: tg.name,
+      repos: [],
+    });
+  }
 
+  const untagged: Repository[] = [];
   for (const r of repos) {
     if (r.tags.length === 0) {
       untagged.push(r);
     } else {
       for (const tag of r.tags) {
-        if (!groupMap.has(tag.id)) {
-          groupMap.set(tag.id, { tag, repos: [] });
+        const existing = groupMap.get(tag.id);
+        if (existing) {
+          existing.repos.push(r);
+        } else {
+          groupMap.set(tag.id, {
+            key: `tag-${tag.id}`,
+            tag,
+            label: tag.name,
+            repos: [r],
+          });
         }
-        groupMap.get(tag.id)!.repos.push(r);
       }
     }
   }
 
-  const groups: RepoGroup[] = Array.from(groupMap.values())
-    .sort(
-      (a, b) =>
-        a.tag.sort_order - b.tag.sort_order ||
-        a.tag.name.localeCompare(b.tag.name),
-    )
-    .map(({ tag, repos: rs }) => ({
-      key: `tag-${tag.id}`,
-      tag,
-      label: tag.name,
-      repos: rs,
-    }));
+  const groups = Array.from(groupMap.values()).sort(
+    (a, b) =>
+      (a.tag?.sort_order ?? 0) - (b.tag?.sort_order ?? 0) ||
+      (a.tag?.name ?? "").localeCompare(b.tag?.name ?? ""),
+  );
 
-  if (untagged.length > 0) {
+  if (untagged.length > 0 || allTags.length === 0) {
     groups.push({
       key: "untagged",
       tag: null,
@@ -285,6 +309,14 @@ export function Sidebar() {
     },
   });
 
+  const createTagInline = useMutation({
+    mutationFn: ({ name, color }: { name: string; color: TagColor }) =>
+      api.createTag(name, color),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["repoTags"] });
+    },
+  });
+
   const remove = useMutation({
     mutationFn: (id: number) => api.removeRepository(id),
     onSuccess: (_, id) => {
@@ -299,17 +331,21 @@ export function Sidebar() {
     },
   });
 
-  const moveRepoTags = useMutation({
+  const moveAndReorder = useMutation({
     mutationFn: async (vars: {
       repoId: number;
       addTagId: number | null;
       removeTagId: number | null;
+      orderedIds?: number[] | null;
     }) => {
-      if (vars.addTagId != null) {
+      if (vars.addTagId != null && vars.addTagId !== vars.removeTagId) {
         await api.assignTag(vars.repoId, vars.addTagId);
       }
       if (vars.removeTagId != null && vars.removeTagId !== vars.addTagId) {
         await api.unassignTag(vars.repoId, vars.removeTagId);
+      }
+      if (vars.orderedIds && vars.orderedIds.length > 0) {
+        await api.reorderRepositories(vars.orderedIds);
       }
     },
     onSuccess: () => {
@@ -321,10 +357,31 @@ export function Sidebar() {
   const handleDropOnGroup = (group: RepoGroup, payload: DragPayload) => {
     if (payload.sourceGroupKey === group.key) return;
     const target = group.tag?.id ?? null;
-    moveRepoTags.mutate({
+    moveAndReorder.mutate({
       repoId: payload.repoId,
       addTagId: target,
       removeTagId: payload.sourceTagId,
+    });
+  };
+
+  const handleDropOnRow = (
+    target: Repository,
+    targetTagId: number | null,
+    position: "before" | "after",
+    payload: DragPayload,
+  ) => {
+    if (payload.repoId === target.id) return;
+    const baseList = (repos.data ?? []).map((r) => r.id);
+    const filteredList = baseList.filter((id) => id !== payload.repoId);
+    let insertIdx = filteredList.indexOf(target.id);
+    if (insertIdx < 0) return;
+    if (position === "after") insertIdx += 1;
+    filteredList.splice(insertIdx, 0, payload.repoId);
+    moveAndReorder.mutate({
+      repoId: payload.repoId,
+      addTagId: targetTagId,
+      removeTagId: payload.sourceTagId,
+      orderedIds: filteredList,
     });
   };
 
@@ -345,8 +402,8 @@ export function Sidebar() {
         );
 
   const groups = useMemo(
-    () => buildGroups(filtered, t("sidebar.untagged")),
-    [filtered, t],
+    () => buildGroups(filtered, tagsQuery.data ?? [], t("sidebar.untagged")),
+    [filtered, tagsQuery.data, t],
   );
 
   return (
@@ -512,7 +569,8 @@ export function Sidebar() {
             selectedRepoId={selectedRepoId}
             onRepoClick={onRepoClick}
             onRepoRemove={(r) => setRemoveTarget(r)}
-            onDropRepo={handleDropOnGroup}
+            onDropOnGroup={handleDropOnGroup}
+            onDropOnRow={handleDropOnRow}
             sparkByRepo={sparkByRepo}
           />
         ))}
@@ -544,8 +602,13 @@ export function Sidebar() {
         items={scanState?.items ?? []}
         tags={tagsQuery.data ?? []}
         pending={commitScan.isPending}
+        creating={createTagInline.isPending}
         onCancel={() => setScanState(null)}
         onConfirm={(paths, tagId) => commitScan.mutate({ paths, tagId })}
+        onCreateTag={async (name, color) => {
+          const tag = await createTagInline.mutateAsync({ name, color });
+          return tag.id;
+        }}
       />
     </aside>
   );
@@ -558,7 +621,8 @@ function RepoGroupView({
   selectedRepoId,
   onRepoClick,
   onRepoRemove,
-  onDropRepo,
+  onDropOnGroup,
+  onDropOnRow,
   sparkByRepo,
 }: {
   group: RepoGroup;
@@ -567,7 +631,13 @@ function RepoGroupView({
   selectedRepoId: number | null;
   onRepoClick: (id: number) => void;
   onRepoRemove: (r: Repository) => void;
-  onDropRepo: (group: RepoGroup, payload: DragPayload) => void;
+  onDropOnGroup: (group: RepoGroup, payload: DragPayload) => void;
+  onDropOnRow: (
+    target: Repository,
+    targetTagId: number | null,
+    position: "before" | "after",
+    payload: DragPayload,
+  ) => void;
   sparkByRepo: Map<number, number[]>;
 }) {
   const { t } = useTranslation();
@@ -592,7 +662,7 @@ function RepoGroupView({
     e.preventDefault();
     try {
       const payload = JSON.parse(raw) as DragPayload;
-      onDropRepo(group, payload);
+      onDropOnGroup(group, payload);
     } catch {
       // ignore
     }
@@ -656,6 +726,11 @@ function RepoGroupView({
       </div>
       {!collapsed && (
         <ul className="mt-0.5 flex flex-col gap-0.5 pl-2">
+          {group.repos.length === 0 && (
+            <li className="px-2 py-1 text-[11px] italic text-muted-foreground/70">
+              {t("sidebar.emptyGroupHint")}
+            </li>
+          )}
           {group.repos.map((r) => (
             <RepoRow
               key={`${group.key}-${r.id}`}
@@ -665,6 +740,9 @@ function RepoGroupView({
               isActive={r.id === selectedRepoId}
               onClick={() => onRepoClick(r.id)}
               onRemove={() => onRepoRemove(r)}
+              onDropAt={(payload, position) =>
+                onDropOnRow(r, group.tag?.id ?? null, position, payload)
+              }
               days={sparkByRepo.get(r.id)}
               t={t}
             />
@@ -682,6 +760,7 @@ function RepoRow({
   isActive,
   onClick,
   onRemove,
+  onDropAt,
   days,
   t,
 }: {
@@ -691,6 +770,7 @@ function RepoRow({
   isActive: boolean;
   onClick: () => void;
   onRemove: () => void;
+  onDropAt: (payload: DragPayload, position: "before" | "after") => void;
   days?: number[];
   t: (k: string, opts?: Record<string, unknown>) => string;
 }) {
@@ -699,6 +779,7 @@ function RepoRow({
     ? t("sparkline.last30Days", { count: total })
     : t("sparkline.noActivity");
   const [isDragging, setIsDragging] = useState(false);
+  const [dropEdge, setDropEdge] = useState<"top" | "bottom" | null>(null);
 
   const handleDragStart = (e: React.DragEvent) => {
     const payload: DragPayload = {
@@ -711,13 +792,61 @@ function RepoRow({
     setIsDragging(true);
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.types).includes(DRAG_MIME)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    setDropEdge(e.clientY < midY ? "top" : "bottom");
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setDropEdge(null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    const raw = e.dataTransfer.getData(DRAG_MIME);
+    setDropEdge(null);
+    if (!raw) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const payload = JSON.parse(raw) as DragPayload;
+      if (payload.repoId === repo.id) return;
+      onDropAt(payload, dropEdge === "top" ? "before" : "after");
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <li
       className={cn("group/row relative", isDragging && "opacity-40")}
       draggable
       onDragStart={handleDragStart}
-      onDragEnd={() => setIsDragging(false)}
+      onDragEnd={() => {
+        setIsDragging(false);
+        setDropEdge(null);
+      }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
+      {dropEdge === "top" && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-1 -top-px h-0.5 rounded-full bg-primary"
+        />
+      )}
+      {dropEdge === "bottom" && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-primary"
+        />
+      )}
       {isActive && (
         <span
           aria-hidden
@@ -796,22 +925,34 @@ function ScanResultDialog({
   items,
   tags,
   pending,
+  creating,
   onCancel,
   onConfirm,
+  onCreateTag,
 }: {
   open: boolean;
   folder: string;
   items: DiscoveredRepo[];
-  tags: { id: number; name: string }[];
+  tags: TagWithStats[];
   pending: boolean;
+  creating: boolean;
   onCancel: () => void;
   onConfirm: (paths: string[], tagId: number | null) => void;
+  onCreateTag: (name: string, color: TagColor) => Promise<number>;
 }) {
   const { t } = useTranslation();
   const [tagId, setTagId] = useState<string>("");
+  const [createMode, setCreateMode] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState<TagColor>("slate");
 
   useEffect(() => {
-    if (!open) setTagId("");
+    if (!open) {
+      setTagId("");
+      setCreateMode(false);
+      setNewName("");
+      setNewColor("slate");
+    }
   }, [open]);
 
   const tagOptions = useMemo(
@@ -821,6 +962,19 @@ function ScanResultDialog({
     ],
     [tags, t],
   );
+
+  const handleCreate = async () => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      const id = await onCreateTag(trimmed, newColor);
+      setTagId(String(id));
+      setCreateMode(false);
+      setNewName("");
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   if (!open) return null;
 
@@ -859,16 +1013,85 @@ function ScanResultDialog({
       }
     >
       <div className="space-y-3">
-        <div className="space-y-1">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t("sidebar.scanModalTagOptional")}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t("sidebar.scanModalTagOptional")}
+            </span>
+            {!createMode && (
+              <button
+                type="button"
+                onClick={() => setCreateMode(true)}
+                className="flex items-center gap-1 text-[11px] text-primary hover:underline"
+              >
+                <Plus size={11} />
+                {t("sidebar.scanModalNewTag")}
+              </button>
+            )}
           </div>
-          <Select
-            value={tagId}
-            onChange={(v) => setTagId(v)}
-            options={tagOptions}
-            className="h-8 text-xs"
-          />
+          {createMode ? (
+            <div className="space-y-2 rounded-md border bg-muted/20 p-2.5">
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreate();
+                  else if (e.key === "Escape") setCreateMode(false);
+                }}
+                placeholder={t("sidebar.tagPlaceholder")}
+                className="h-8 text-xs"
+                autoFocus
+              />
+              <div className="flex flex-wrap gap-1">
+                {TAG_COLORS.map((c) => {
+                  const cls = classesFor(c);
+                  const active = newColor === c;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-label={c}
+                      onClick={() => setNewColor(c)}
+                      className={cn(
+                        "h-5 w-5 rounded-full ring-2 ring-transparent",
+                        cls.dot,
+                        active && cls.ring,
+                      )}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setCreateMode(false);
+                    setNewName("");
+                  }}
+                  disabled={creating}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleCreate}
+                  disabled={creating || !newName.trim()}
+                >
+                  {creating
+                    ? t("tagManager.create") + "…"
+                    : t("tagManager.create")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Select
+              value={tagId}
+              onChange={(v) => setTagId(v)}
+              options={tagOptions}
+              className="h-8 text-xs"
+            />
+          )}
         </div>
         <div className="space-y-1">
           <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

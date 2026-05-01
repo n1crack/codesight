@@ -98,7 +98,7 @@ export function PatternsPage() {
         }
       />
       <div className="flex flex-col gap-4 p-6">
-        <Card className="transition-shadow hover:shadow-md">
+        <Card>
           <CardHeader>
             <CardTitle>{t("activity.matrix")}</CardTitle>
           </CardHeader>
@@ -120,7 +120,7 @@ export function PatternsPage() {
         </Card>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card className="transition-shadow hover:shadow-md">
+          <Card>
             <CardHeader>
               <CardTitle>{t("activity.hourOfDay")}</CardTitle>
             </CardHeader>
@@ -136,7 +136,7 @@ export function PatternsPage() {
               ) : null}
             </CardContent>
           </Card>
-          <Card className="transition-shadow hover:shadow-md">
+          <Card>
             <CardHeader>
               <CardTitle>{t("activity.dayOfWeek")}</CardTitle>
             </CardHeader>
@@ -212,6 +212,8 @@ function MatrixChart({
         {matrix.flatMap((row, d) =>
           row.map((v, h) => {
             const lvl = levelOf(v, matrixMax);
+            const isActive =
+              tip.active?.dow === d && tip.active?.hour === h;
             return (
               <rect
                 key={`${d}-${h}`}
@@ -221,8 +223,12 @@ function MatrixChart({
                 height={CELL}
                 rx={2}
                 ry={2}
-                className={cn(HEAT_LEVELS[lvl], "stroke-border")}
-                strokeWidth={0.5}
+                className={cn(
+                  HEAT_LEVELS[lvl],
+                  "transition-[stroke,stroke-width] duration-100",
+                  isActive ? "stroke-foreground" : "stroke-border",
+                )}
+                strokeWidth={isActive ? 1.5 : 0.5}
                 onMouseEnter={(e) =>
                   tip.enter({ dow: d, hour: h, value: v }, e)
                 }
@@ -276,6 +282,7 @@ function BarsRow({
           const x = i * (barW + gap);
           const y = h - bh;
           const showLabel = labels === "hour" ? i % 3 === 0 : true;
+          const isActive = tip.active?.index === i;
           return (
             <g key={i}>
               <rect
@@ -284,7 +291,12 @@ function BarsRow({
                 width={barW}
                 height={bh}
                 rx={3}
-                className="fill-[var(--color-chart-1)] opacity-80 hover:opacity-100"
+                className={cn(
+                  "fill-[var(--color-chart-1)] transition-opacity",
+                  isActive ? "opacity-100" : "opacity-70",
+                )}
+                stroke={isActive ? "var(--color-foreground)" : "none"}
+                strokeWidth={isActive ? 1.5 : 0}
                 onMouseEnter={(e) => tip.enter({ index: i, value: v }, e)}
                 onMouseLeave={() => tip.setActive(null)}
               />

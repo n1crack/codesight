@@ -56,6 +56,8 @@
     "scanModalNoTag": "— etiketsiz —",
     "scanModalAdd": "{{count}} depo ekle",
     "scanModalAdding": "Ekleniyor…",
+    "scanModalNewTag": "Yeni etiket",
+    "emptyGroupHint": "Bu etikete depo atamak için sürükleyip bırak",
     "filterPlaceholder": "Depo filtrele veya #etiket…",
     "noMatch": "Eşleşen depo yok",
     "dragHint": "Sürükle ya da çift-tıklayıp sıfırla",

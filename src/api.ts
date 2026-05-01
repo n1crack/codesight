@@ -43,6 +43,8 @@ export const api = {
   listRepositories: () => invoke<Repository[]>("list_repositories"),
   addRepository: (path: string) => invoke<Repository>("add_repository", { path }),
   removeRepository: (id: number) => invoke<void>("remove_repository", { id }),
+  reorderRepositories: (orderedIds: number[]) =>
+    invoke<void>("reorder_repositories", { orderedIds }),
   refreshRepo: (id: number) => invoke<void>("refresh_repo", { id }),
   // Repo tags (organization labels)
   listRepoTags: () => invoke<TagWithStats[]>("list_repo_tags"),

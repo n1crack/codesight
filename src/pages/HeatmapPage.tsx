@@ -85,7 +85,7 @@ export function HeatmapPage() {
         }
       />
       <div className="p-6" ref={cardRef}>
-        <Card className="transition-shadow hover:shadow-md">
+        <Card>
           <CardHeader>
             <CardTitle>
               {heatmap.data

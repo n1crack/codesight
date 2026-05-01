@@ -129,7 +129,9 @@ pub fn add_repository_impl(db: &Db, path_str: &str) -> AppResult<Repository> {
 
     db.with(|conn| {
         conn.execute(
-            "INSERT INTO repositories (name, path, added_at) VALUES (?1, ?2, ?3)
+            "INSERT INTO repositories (name, path, added_at, sort_order)
+             VALUES (?1, ?2, ?3,
+                COALESCE((SELECT MAX(sort_order) + 1 FROM repositories), 0))
              ON CONFLICT(path) DO UPDATE SET name = excluded.name",
             params![name, canonical_str, added_at],
         )?;
@@ -144,7 +146,8 @@ pub fn add_repository_impl(db: &Db, path_str: &str) -> AppResult<Repository> {
 pub fn list_repositories_impl(db: &Db) -> AppResult<Vec<Repository>> {
     db.with(|conn| {
         let mut stmt = conn.prepare(
-            "SELECT id, name, path, added_at, last_indexed_at FROM repositories ORDER BY added_at DESC",
+            "SELECT id, name, path, added_at, last_indexed_at FROM repositories
+             ORDER BY sort_order ASC, added_at DESC",
         )?;
         let rows = stmt.query_map([], row_to_repo)?;
         let mut out = Vec::new();
@@ -164,6 +167,20 @@ pub fn list_repositories_impl(db: &Db) -> AppResult<Vec<Repository>> {
 pub fn remove_repository_impl(db: &Db, id: i64) -> AppResult<()> {
     db.with(|conn| {
         conn.execute("DELETE FROM repositories WHERE id = ?1", params![id])?;
+        Ok(())
+    })
+}
+
+pub fn reorder_repositories_impl(db: &Db, ordered_ids: Vec<i64>) -> AppResult<()> {
+    db.with(|conn| {
+        let tx = conn.unchecked_transaction()?;
+        for (idx, id) in ordered_ids.iter().enumerate() {
+            tx.execute(
+                "UPDATE repositories SET sort_order = ?1 WHERE id = ?2",
+                params![idx as i64, id],
+            )?;
+        }
+        tx.commit()?;
         Ok(())
     })
 }

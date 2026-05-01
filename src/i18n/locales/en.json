@@ -56,6 +56,8 @@
     "scanModalNoTag": "— no tag —",
     "scanModalAdd": "Add {{count}}",
     "scanModalAdding": "Adding…",
+    "scanModalNewTag": "New tag",
+    "emptyGroupHint": "Drop a repo here to assign this tag",
     "filterPlaceholder": "Filter repos or #tag…",
     "noMatch": "No repos match",
     "dragHint": "Drag to resize · double-click to reset",

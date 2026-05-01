@@ -27,7 +27,8 @@ impl Db {
                 name            TEXT NOT NULL,
                 path            TEXT NOT NULL UNIQUE,
                 added_at        TEXT NOT NULL,
-                last_indexed_at TEXT
+                last_indexed_at TEXT,
+                sort_order      INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS analysis_cache (
@@ -77,6 +78,11 @@ impl Db {
             DROP TABLE IF EXISTS repo_tags;
             "#,
         )?;
+        // Idempotent column add for upgrades from older databases.
+        let _ = conn.execute(
+            "ALTER TABLE repositories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
         Ok(Self { conn: Mutex::new(conn) })
     }
 

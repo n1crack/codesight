@@ -38,8 +38,8 @@ use crate::error::AppResult;
 use crate::repo::{
     add_discovered_repos_impl, add_repository_impl, assign_tag_impl, create_tag_impl,
     delete_tag_impl, discover_repos_impl, list_repositories_impl, list_tags_with_stats_impl,
-    remove_repository_impl, scan_folder_impl, set_tag_repos_impl, unassign_tag_impl,
-    update_tag_impl, DiscoveredRepo, Repository, Tag, TagWithStats,
+    remove_repository_impl, reorder_repositories_impl, scan_folder_impl, set_tag_repos_impl,
+    unassign_tag_impl, update_tag_impl, DiscoveredRepo, Repository, Tag, TagWithStats,
 };
 
 pub struct AppState {
@@ -153,6 +153,17 @@ async fn set_tag_repos(
 async fn remove_repository(state: tauri::State<'_, AppState>, id: i64) -> AppResult<()> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || remove_repository_impl(&db, id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn reorder_repositories(
+    state: tauri::State<'_, AppState>,
+    ordered_ids: Vec<i64>,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || reorder_repositories_impl(&db, ordered_ids))
         .await
         .unwrap()
 }
@@ -628,6 +639,7 @@ pub fn run() {
             add_repository,
             list_repositories,
             remove_repository,
+            reorder_repositories,
             refresh_repo,
             create_tag,
             update_tag,

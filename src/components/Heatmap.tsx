@@ -132,6 +132,7 @@ export function Heatmap({ data, className }: HeatmapProps) {
             const lvl = levelOf(c.count, data.max_count);
             const x = LEFT_PAD + c.week * PITCH;
             const y = TOP_PAD + c.dow * PITCH;
+            const isActive = tip.active?.date === c.date;
             return (
               <rect
                 key={c.date}
@@ -141,8 +142,14 @@ export function Heatmap({ data, className }: HeatmapProps) {
                 height={CELL}
                 rx={2}
                 ry={2}
-                className={cn(LEVEL_BG[lvl], "stroke-border")}
-                strokeWidth={0.5}
+                className={cn(
+                  LEVEL_BG[lvl],
+                  "transition-[stroke,stroke-width] duration-100",
+                  isActive
+                    ? "stroke-foreground"
+                    : "stroke-border",
+                )}
+                strokeWidth={isActive ? 1.5 : 0.5}
                 onMouseEnter={(e) => tip.enter(c, e)}
                 onMouseLeave={() => tip.setActive(null)}
               />
