@@ -230,11 +230,11 @@ codesight/
 
 Grouped by pillar; every command is a `#[tauri::command] async fn` wrapping `spawn_blocking`.
 
-**Repo CRUD** — `add_repository`, `list_repositories`, `remove_repository`, `scan_folder`, `get_repos_sparklines`, `list_known_authors`
+**Repo CRUD & organization** — `add_repository`, `list_repositories`, `remove_repository`, `reorder_repositories`, `scan_folder`, `discover_repos`, `add_discovered_repos`, `refresh_repo`, `get_repos_sparklines`, `list_known_authors`, `list_repo_tags`, `create_tag`, `update_tag`, `delete_tag`, `assign_tag`, `unassign_tag`, `set_tag_repos`, `get_git_config`, `open_in_ide`
 
 **Activity** — `get_repo_summary`, `get_commit_heatmap`, `get_commit_timeline`, `get_code_churn`, `get_activity_patterns`, `get_recent_commits`, `get_top_contributors`, `get_language_breakdown`
 
-**Insights** — `get_repo_health` (composite score with structured `HealthDetail` enum), `get_file_hotspots`, `get_directory_hotspots`, `get_file_couplings`, `get_churn_risk`, `get_ownership_report` (with `OwnershipAlert[]`), `get_commit_message_stats`, `get_contributor_detail`, `get_contributor_heatmap`, `get_contributor_top_files`, `get_contributor_recent_commits`, `get_contributor_cohort`
+**Insights** — `get_repo_health` (composite score with structured `HealthDetail` enum), `get_file_hotspots`, `get_directory_hotspots`, `get_file_couplings`, `get_churn_risk`, `get_ownership_report` (with `OwnershipAlert[]`), `get_commit_message_stats`, `get_contributor_detail`, `get_contributor_heatmap`, `get_contributor_top_files`, `get_contributor_recent_commits`, `get_contributor_cohort`, `get_coauthor_pairs`, `get_author_specialization`, `run_quality_scan`, `run_history_secret_scan` (emits `scan-progress` events)
 
 **Graph** — `get_commit_graph`, `list_branches` (with `unique_commits` + `risk` per branch), `list_tags`
 
@@ -279,16 +279,14 @@ Grouped by pillar; every command is a `#[tauri::command] async fn` wrapping `spa
 
 ## Roadmap
 
-Done in recent iterations: Repo Health Score, Stale Branch Risk, Churn Risk Index, Ownership Concentration Alerts, Contributor Volatility, code-split bundle, Cmd+K palette, custom chart tooltips, three-pillar IA refactor.
+Recently shipped: Repo Health Score, Stale Branch Risk, Churn Risk Index, Ownership Concentration Alerts, Contributor Volatility, code-split bundle, ⌘K palette with match highlighting, custom chart tooltips, three-pillar IA, HEAD-keyed SQLite analysis cache, global date-range filter, Shiki diff syntax highlighting + side-by-side mode with synced scroll, **repo tagging with drag-and-drop reordering and tag-group moves**, **OS-level folder drop** with discovery modal, **Quality & Security** scanner (5 groups + suggestions + deep history secret scan with progress), **Health = activity + quality** combined score, **Open-in-editor** integration with default-editor preference, **read-only Git config view** (user / remotes / hooks).
 
 Next:
 
-- [ ] Incremental SQLite analysis cache + per-section refresh that uses cache age
-- [ ] Global date-range filter (sticky across pages, scoped to the active pillar)
-- [ ] Diff syntax highlighting (Shiki, lazy-loaded)
-- [ ] Side-by-side diff toggle
-- [ ] Repo grouping / tagging
-- [ ] Markdown / PNG export of charts
+- [ ] Markdown / PNG export of pages and charts
+- [ ] Editable git config (set `user.email`, add/remove remotes, install hook templates)
+- [ ] Per-repo "open in terminal" + native git client conveniences
+- [ ] Graph pillar deepening: file co-change network, ownership map, import dependency graph
 - [ ] Windows MSI + macOS DMG + auto-updates
 
 ---
