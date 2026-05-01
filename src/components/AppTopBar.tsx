@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { RotateCw, Search } from "lucide-react";
 
+import { api } from "@/api";
+import { useAppState } from "@/state/AppState";
 import { cn } from "@/lib/utils";
 
 const isMac =
@@ -12,6 +14,7 @@ const isMac =
 export function AppTopBar() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { selectedRepoId } = useAppState();
   const [spinning, setSpinning] = useState(false);
 
   useEffect(() => {
@@ -20,9 +23,16 @@ export function AppTopBar() {
     return () => window.clearTimeout(id);
   }, [spinning]);
 
-  const refresh = () => {
-    qc.invalidateQueries();
+  const refresh = async () => {
     setSpinning(true);
+    try {
+      if (selectedRepoId != null) {
+        await api.refreshRepo(selectedRepoId);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    qc.invalidateQueries();
   };
 
   const openPalette = () => {

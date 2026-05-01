@@ -52,6 +52,14 @@ async fn list_repositories(state: tauri::State<'_, AppState>) -> AppResult<Vec<R
 }
 
 #[tauri::command]
+async fn refresh_repo(state: tauri::State<'_, AppState>, id: i64) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || db.invalidate_cache(id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
 async fn remove_repository(state: tauri::State<'_, AppState>, id: i64) -> AppResult<()> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || remove_repository_impl(&db, id))
@@ -440,6 +448,7 @@ pub fn run() {
             add_repository,
             list_repositories,
             remove_repository,
+            refresh_repo,
             scan_folder,
             get_repo_summary,
             get_commit_heatmap,

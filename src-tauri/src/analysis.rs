@@ -4,7 +4,7 @@ use std::path::Path;
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Timelike, Utc};
 use git2::{Repository as GitRepository, Sort};
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::error::{AppError, AppResult};
 use crate::repo::{get_repository_impl, Repository};
@@ -379,6 +379,43 @@ fn open(path: &str) -> AppResult<GitRepository> {
     GitRepository::open(path).map_err(|_| AppError::NotARepo(path.into()))
 }
 
+fn current_head(repo_path: &str) -> String {
+    let Ok(repo) = GitRepository::open(repo_path) else {
+        return "empty".into();
+    };
+    match repo.head().ok().and_then(|h| h.target()) {
+        Some(oid) => oid.to_string(),
+        None => "empty".into(),
+    }
+}
+
+/// HEAD-keyed cache wrapper.
+/// Returns cached result if HEAD hasn't changed since last computation; otherwise computes,
+/// stores, and returns. Cache lives in `analysis_cache` SQLite table, JSON-encoded.
+fn cached<T, F>(
+    db: &crate::db::Db,
+    repo_id: i64,
+    head: &str,
+    key: &str,
+    compute: F,
+) -> AppResult<T>
+where
+    T: Serialize + DeserializeOwned,
+    F: FnOnce() -> AppResult<T>,
+{
+    if let Some(bytes) = db.get_cached(repo_id, key, head)? {
+        if let Ok(value) = serde_json::from_slice::<T>(&bytes) {
+            return Ok(value);
+        }
+        // corrupted cache → fall through and recompute
+    }
+
+    let value = compute()?;
+    let bytes = serde_json::to_vec(&value)?;
+    let _ = db.put_cached(repo_id, key, head, &bytes);
+    Ok(value)
+}
+
 fn commit_time(commit: &git2::Commit<'_>) -> DateTime<Utc> {
     let secs = commit.time().seconds();
     Utc.timestamp_opt(secs, 0).single().unwrap_or_else(Utc::now)
@@ -393,6 +430,8 @@ fn walk(repo: &GitRepository) -> AppResult<git2::Revwalk<'_>> {
 
 pub fn get_repo_summary_impl(db: &crate::db::Db, id: i64) -> AppResult<RepoSummary> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    cached(db, id, &head, "summary", move || {
     let repo = open(&repo_meta.path)?;
 
     let mut total_commits = 0usize;
@@ -437,6 +476,7 @@ pub fn get_repo_summary_impl(db: &crate::db::Db, id: i64) -> AppResult<RepoSumma
         last_commit_at: last.map(|d| d.to_rfc3339()),
         head_branch,
     })
+    })
 }
 
 pub fn get_commit_heatmap_impl(
@@ -445,6 +485,9 @@ pub fn get_commit_heatmap_impl(
     year: i32,
 ) -> AppResult<HeatmapData> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let key = format!("heatmap:{}", year);
+    cached(db, id, &head, &key, move || {
     let repo = open(&repo_meta.path)?;
 
     let mut counts: HashMap<NaiveDate, u32> = HashMap::new();
@@ -494,6 +537,7 @@ pub fn get_commit_heatmap_impl(
         max_count,
         total,
     })
+    })
 }
 
 pub fn get_commit_timeline_impl(
@@ -502,6 +546,10 @@ pub fn get_commit_timeline_impl(
     granularity: &str,
 ) -> AppResult<Vec<TimelinePoint>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("timeline:{}", granularity);
+    let granularity = granularity.to_string();
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     let mut buckets: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
@@ -513,7 +561,7 @@ pub fn get_commit_timeline_impl(
         }
         let commit = repo.find_commit(oid)?;
         let ts = commit_time(&commit);
-        let key = match granularity {
+        let key = match granularity.as_str() {
             "day" => ts.format("%Y-%m-%d").to_string(),
             "month" => ts.format("%Y-%m").to_string(),
             _ => {
@@ -529,6 +577,7 @@ pub fn get_commit_timeline_impl(
         .into_iter()
         .map(|(bucket, count)| TimelinePoint { bucket, count })
         .collect())
+    })
 }
 
 pub fn get_top_contributors_impl(
@@ -537,6 +586,9 @@ pub fn get_top_contributors_impl(
     limit: usize,
 ) -> AppResult<Vec<Contributor>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("topContributors:{}", limit);
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     struct Acc {
@@ -592,6 +644,7 @@ pub fn get_top_contributors_impl(
     list.sort_by(|a, b| b.commits.cmp(&a.commits));
     list.truncate(limit);
     Ok(list)
+    })
 }
 
 pub fn get_recent_commits_impl(
@@ -600,6 +653,9 @@ pub fn get_recent_commits_impl(
     limit: usize,
 ) -> AppResult<Vec<CommitInfo>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("recentCommits:{}", limit);
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     let mut out = Vec::with_capacity(limit);
@@ -626,6 +682,7 @@ pub fn get_recent_commits_impl(
         }
     }
     Ok(out)
+    })
 }
 
 pub fn get_language_breakdown_impl(
@@ -633,13 +690,15 @@ pub fn get_language_breakdown_impl(
     id: i64,
 ) -> AppResult<Vec<LanguageStat>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    cached(db, id, &head, "languages", move || {
     let repo = open(&repo_meta.path)?;
 
-    let head = match repo.head() {
+    let repo_head = match repo.head() {
         Ok(h) => h,
         Err(_) => return Ok(Vec::new()),
     };
-    let tree = head.peel_to_tree()?;
+    let tree = repo_head.peel_to_tree()?;
 
     let mut stats: HashMap<&'static str, (u32, u64)> = HashMap::new();
     tree.walk(git2::TreeWalkMode::PreOrder, |_root, entry| {
@@ -670,6 +729,7 @@ pub fn get_language_breakdown_impl(
         .collect();
     out.sort_by(|a, b| b.bytes.cmp(&a.bytes));
     Ok(out)
+    })
 }
 
 fn bucket_key(ts: DateTime<Utc>, granularity: &str) -> String {
@@ -718,12 +778,16 @@ pub fn get_code_churn_impl(
     granularity: &str,
 ) -> AppResult<Vec<ChurnPoint>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("churn:{}", granularity);
+    let granularity = granularity.to_string();
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     let mut buckets: BTreeMap<String, (u32, u32, u32)> = BTreeMap::new();
     walk_diffs(&repo, |commit, diff| {
         let stats = diff.stats()?;
-        let key = bucket_key(commit_time(commit), granularity);
+        let key = bucket_key(commit_time(commit), &granularity);
         let entry = buckets.entry(key).or_insert((0, 0, 0));
         entry.0 = entry.0.saturating_add(stats.insertions() as u32);
         entry.1 = entry.1.saturating_add(stats.deletions() as u32);
@@ -740,6 +804,7 @@ pub fn get_code_churn_impl(
             commits,
         })
         .collect())
+    })
 }
 
 pub fn get_file_hotspots_impl(
@@ -748,6 +813,9 @@ pub fn get_file_hotspots_impl(
     limit: usize,
 ) -> AppResult<Vec<FileHotspot>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("fileHotspots:{}", limit);
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     struct Acc {
@@ -814,6 +882,7 @@ pub fn get_file_hotspots_impl(
     });
     list.truncate(limit);
     Ok(list)
+    })
 }
 
 pub fn get_activity_patterns_impl(
@@ -821,6 +890,8 @@ pub fn get_activity_patterns_impl(
     id: i64,
 ) -> AppResult<ActivityPatterns> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    cached(db, id, &head, "activityPatterns", move || {
     let repo = open(&repo_meta.path)?;
 
     let mut by_hour = [0u32; 24];
@@ -852,6 +923,7 @@ pub fn get_activity_patterns_impl(
         matrix,
         total,
     })
+    })
 }
 
 const CONVENTIONAL_TYPES: &[&str] = &[
@@ -878,6 +950,8 @@ pub fn get_commit_message_stats_impl(
     id: i64,
 ) -> AppResult<CommitMessageStats> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    cached(db, id, &head, "messageStats", move || {
     let repo = open(&repo_meta.path)?;
 
     let mut total = 0u32;
@@ -924,10 +998,13 @@ pub fn get_commit_message_stats_impl(
         no_type_count: no_type,
         types,
     })
+    })
 }
 
 pub fn list_tags_impl(db: &crate::db::Db, id: i64) -> AppResult<Vec<TagInfo>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    cached(db, id, &head, "tags", move || {
     let repo = open(&repo_meta.path)?;
 
     let mut tags: Vec<TagInfo> = Vec::new();
@@ -992,6 +1069,7 @@ pub fn list_tags_impl(db: &crate::db::Db, id: i64) -> AppResult<Vec<TagInfo>> {
     }
 
     Ok(tags)
+    })
 }
 
 fn count_commits_between(
@@ -1075,6 +1153,8 @@ fn compute_sparkline(
 
 pub fn list_branches_impl(db: &crate::db::Db, id: i64) -> AppResult<Vec<BranchInfo>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    cached(db, id, &head, "branches", move || {
     let repo = open(&repo_meta.path)?;
 
     let head_oid = repo.head().ok().and_then(|h| h.target());
@@ -1182,6 +1262,7 @@ pub fn list_branches_impl(db: &crate::db::Db, id: i64) -> AppResult<Vec<BranchIn
     });
 
     Ok(out)
+    })
 }
 
 pub fn get_contributor_detail_impl(
@@ -1190,6 +1271,10 @@ pub fn get_contributor_detail_impl(
     email: &str,
 ) -> AppResult<ContributorDetail> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("contribDetail:{}", email);
+    let email = email.to_string();
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     let mut name = String::new();
@@ -1221,13 +1306,14 @@ pub fn get_contributor_detail_impl(
 
     Ok(ContributorDetail {
         name,
-        email: email.to_string(),
+        email,
         total_commits,
         additions,
         deletions,
         first_commit_at: first.map(|d| d.to_rfc3339()),
         last_commit_at: last.map(|d| d.to_rfc3339()),
         active_days: active_days.len() as u32,
+    })
     })
 }
 
@@ -1238,6 +1324,10 @@ pub fn get_contributor_heatmap_impl(
     year: i32,
 ) -> AppResult<HeatmapData> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("contribHeatmap:{}:{}", email, year);
+    let email = email.to_string();
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     let mut counts: HashMap<NaiveDate, u32> = HashMap::new();
@@ -1292,6 +1382,7 @@ pub fn get_contributor_heatmap_impl(
         max_count,
         total,
     })
+    })
 }
 
 pub fn get_contributor_top_files_impl(
@@ -1301,6 +1392,10 @@ pub fn get_contributor_top_files_impl(
     limit: usize,
 ) -> AppResult<Vec<FileHotspot>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("contribFiles:{}:{}", email, limit);
+    let email = email.to_string();
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     struct Acc {
@@ -1366,6 +1461,7 @@ pub fn get_contributor_top_files_impl(
     list.sort_by(|a, b| b.commits.cmp(&a.commits));
     list.truncate(limit);
     Ok(list)
+    })
 }
 
 pub fn get_contributor_recent_commits_impl(
@@ -1375,6 +1471,10 @@ pub fn get_contributor_recent_commits_impl(
     limit: usize,
 ) -> AppResult<Vec<CommitInfo>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("contribRecent:{}:{}", email, limit);
+    let email = email.to_string();
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     let mut out = Vec::with_capacity(limit);
@@ -1404,6 +1504,7 @@ pub fn get_contributor_recent_commits_impl(
         }
     }
     Ok(out)
+    })
 }
 
 fn parse_date(s: &str) -> Option<DateTime<Utc>> {
@@ -1524,6 +1625,8 @@ pub fn get_ownership_report_impl(
     id: i64,
 ) -> AppResult<OwnershipReport> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    cached(db, id, &head, "ownership", move || {
     let repo = open(&repo_meta.path)?;
 
     struct AuthorAcc {
@@ -1698,6 +1801,7 @@ pub fn get_ownership_report_impl(
         files,
         alerts,
     })
+    })
 }
 
 pub fn get_churn_risk_impl(
@@ -1706,6 +1810,9 @@ pub fn get_churn_risk_impl(
     limit: usize,
 ) -> AppResult<Vec<ChurnRiskFile>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("churnRisk:{}", limit);
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
     let now = Utc::now();
 
@@ -1811,6 +1918,7 @@ pub fn get_churn_risk_impl(
     });
     out.truncate(limit);
     Ok(out)
+    })
 }
 
 pub fn get_contributor_cohort_impl(
@@ -1818,6 +1926,8 @@ pub fn get_contributor_cohort_impl(
     id: i64,
 ) -> AppResult<Vec<ContributorCohortPoint>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    cached(db, id, &head, "contribCohort", move || {
     let repo = open(&repo_meta.path)?;
 
     let mut by_month: BTreeMap<String, std::collections::HashSet<String>> = BTreeMap::new();
@@ -1893,6 +2003,7 @@ pub fn get_contributor_cohort_impl(
     }
 
     Ok(out)
+    })
 }
 
 pub fn get_commit_graph_impl(
@@ -1901,6 +2012,9 @@ pub fn get_commit_graph_impl(
     limit: usize,
 ) -> AppResult<Vec<GraphCommit>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("graph:{}", limit);
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     let limit = limit.clamp(1, 2000);
@@ -1997,6 +2111,7 @@ pub fn get_commit_graph_impl(
     }
 
     Ok(out)
+    })
 }
 
 pub fn get_commit_detail_impl(
@@ -2464,6 +2579,9 @@ pub fn get_file_couplings_impl(
     limit: usize,
 ) -> AppResult<Vec<FileCoupling>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("couplings:{}", limit);
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     let mut counts: HashMap<(String, String), u32> = HashMap::new();
@@ -2507,6 +2625,7 @@ pub fn get_file_couplings_impl(
     out.sort_by(|x, y| y.joint_changes.cmp(&x.joint_changes));
     out.truncate(limit);
     Ok(out)
+    })
 }
 
 pub fn get_directory_hotspots_impl(
@@ -2516,6 +2635,9 @@ pub fn get_directory_hotspots_impl(
     limit: usize,
 ) -> AppResult<Vec<DirectoryHotspot>> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("dirHotspots:{}:{}", max_depth, limit);
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     struct Acc {
@@ -2587,6 +2709,7 @@ pub fn get_directory_hotspots_impl(
     out.sort_by(|a, b| b.commits.cmp(&a.commits));
     out.truncate(limit);
     Ok(out)
+    })
 }
 
 pub fn get_repo_health_impl(
@@ -2594,6 +2717,8 @@ pub fn get_repo_health_impl(
     id: i64,
 ) -> AppResult<RepoHealth> {
     let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    cached(db, id, &head, "health", move || {
     let repo = open(&repo_meta.path)?;
 
     let now = Utc::now();
@@ -2853,6 +2978,7 @@ pub fn get_repo_health_impl(
         score: total_score,
         max: max_score,
         sub_scores,
+    })
     })
 }
 

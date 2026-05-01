@@ -35,6 +35,7 @@ export const api = {
   listRepositories: () => invoke<Repository[]>("list_repositories"),
   addRepository: (path: string) => invoke<Repository>("add_repository", { path }),
   removeRepository: (id: number) => invoke<void>("remove_repository", { id }),
+  refreshRepo: (id: number) => invoke<void>("refresh_repo", { id }),
   scanFolder: (folder: string) => invoke<Repository[]>("scan_folder", { folder }),
   getRepoSummary: (id: number) => invoke<RepoSummary>("get_repo_summary", { id }),
   getCommitHeatmap: (id: number, year: number) =>
