@@ -309,7 +309,14 @@
   },
   "topbar": {
     "refresh": "Refresh",
-    "refreshTitle": "Refresh data"
+    "refreshTitle": "Refresh data",
+    "dateRange": "Range",
+    "dateAll": "All time",
+    "date7d": "Last 7 days",
+    "date30d": "Last 30 days",
+    "date90d": "Last 90 days",
+    "date6m": "Last 6 months",
+    "date1y": "Last year"
   },
   "settings": {
     "title": "Settings",

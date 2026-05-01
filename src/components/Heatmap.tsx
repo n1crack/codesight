@@ -144,6 +144,7 @@ export function Heatmap({ data, className }: HeatmapProps) {
                 className={cn(LEVEL_BG[lvl], "stroke-border")}
                 strokeWidth={0.5}
                 onMouseEnter={(e) => tip.enter(c, e)}
+                onMouseLeave={() => tip.setActive(null)}
               />
             );
           })}

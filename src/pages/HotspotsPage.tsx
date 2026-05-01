@@ -13,6 +13,7 @@ import { useAppState } from "@/state/AppState";
 import { Link } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
+import { resolveDateRangeSince } from "@/state/AppState";
 import type { ChurnRiskLevel } from "@/types";
 
 type TabKey = "files" | "directories" | "couplings" | "risk";
@@ -61,9 +62,11 @@ export function HotspotsPage() {
 
 function FilesTab({ repoId }: { repoId: number }) {
   const { t } = useTranslation();
+  const { dateRange } = useAppState();
+  const since = resolveDateRangeSince(dateRange);
   const q = useQuery({
-    queryKey: ["hotspots", repoId, 40],
-    queryFn: () => api.getFileHotspots(repoId, 40),
+    queryKey: ["hotspots", repoId, 40, since],
+    queryFn: () => api.getFileHotspots(repoId, 40, since),
   });
   const max = Math.max(1, ...(q.data ?? []).map((h) => h.commits));
 
@@ -119,10 +122,12 @@ function FilesTab({ repoId }: { repoId: number }) {
 
 function DirectoriesTab({ repoId }: { repoId: number }) {
   const { t } = useTranslation();
+  const { dateRange } = useAppState();
+  const since = resolveDateRangeSince(dateRange);
   const [depth, setDepth] = useState(2);
   const q = useQuery({
-    queryKey: ["dirHotspots", repoId, depth, 40],
-    queryFn: () => api.getDirectoryHotspots(repoId, depth, 40),
+    queryKey: ["dirHotspots", repoId, depth, 40, since],
+    queryFn: () => api.getDirectoryHotspots(repoId, depth, 40, since),
   });
   const max = Math.max(1, ...(q.data ?? []).map((h) => h.commits));
 
@@ -194,9 +199,11 @@ function DirectoriesTab({ repoId }: { repoId: number }) {
 
 function CouplingsTab({ repoId }: { repoId: number }) {
   const { t } = useTranslation();
+  const { dateRange } = useAppState();
+  const since = resolveDateRangeSince(dateRange);
   const q = useQuery({
-    queryKey: ["couplings", repoId, 50],
-    queryFn: () => api.getFileCouplings(repoId, 50),
+    queryKey: ["couplings", repoId, 50, since],
+    queryFn: () => api.getFileCouplings(repoId, 50, since),
   });
   const max = Math.max(1, ...(q.data ?? []).map((c) => c.jointChanges));
 
@@ -269,9 +276,11 @@ const RISK_BAR: Record<ChurnRiskLevel, string> = {
 
 function RiskTab({ repoId }: { repoId: number }) {
   const { t } = useTranslation();
+  const { dateRange } = useAppState();
+  const since = resolveDateRangeSince(dateRange);
   const q = useQuery({
-    queryKey: ["churnRisk", repoId, 40],
-    queryFn: () => api.getChurnRisk(repoId, 40),
+    queryKey: ["churnRisk", repoId, 40, since],
+    queryFn: () => api.getChurnRisk(repoId, 40, since),
   });
 
   return (

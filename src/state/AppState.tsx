@@ -2,6 +2,29 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 type Theme = "light" | "dark" | "system";
 
+export type DateRangePreset =
+  | "all"
+  | "7d"
+  | "30d"
+  | "90d"
+  | "6m"
+  | "1y";
+
+export function resolveDateRangeSince(preset: DateRangePreset): string | null {
+  if (preset === "all") return null;
+  const days: Record<Exclude<DateRangePreset, "all">, number> = {
+    "7d": 7,
+    "30d": 30,
+    "90d": 90,
+    "6m": 180,
+    "1y": 365,
+  };
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - days[preset]);
+  return d.toISOString();
+}
+
 type AppContextValue = {
   selectedRepoId: number | null;
   setSelectedRepoId: (id: number | null) => void;
@@ -9,6 +32,8 @@ type AppContextValue = {
   setTheme: (t: Theme) => void;
   myEmail: string | null;
   setMyEmail: (email: string | null) => void;
+  dateRange: DateRangePreset;
+  setDateRange: (r: DateRangePreset) => void;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -16,6 +41,16 @@ const AppContext = createContext<AppContextValue | null>(null);
 const THEME_KEY = "codesight.theme";
 const REPO_KEY = "codesight.selectedRepoId";
 const EMAIL_KEY = "codesight.myEmail";
+const DATE_RANGE_KEY = "codesight.dateRange";
+
+const VALID_RANGES: DateRangePreset[] = ["all", "7d", "30d", "90d", "6m", "1y"];
+
+function readDateRange(): DateRangePreset {
+  const v = localStorage.getItem(DATE_RANGE_KEY);
+  return (VALID_RANGES as string[]).includes(v ?? "")
+    ? (v as DateRangePreset)
+    : "all";
+}
 
 function readTheme(): Theme {
   const t = localStorage.getItem(THEME_KEY);
@@ -47,6 +82,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [myEmail, setMyEmailState] = useState<string | null>(
     () => localStorage.getItem(EMAIL_KEY),
   );
+  const [dateRange, setDateRangeState] = useState<DateRangePreset>(() =>
+    readDateRange(),
+  );
 
   useEffect(() => {
     applyTheme(theme);
@@ -73,6 +111,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     else localStorage.setItem(EMAIL_KEY, email);
   };
 
+  const setDateRange = (r: DateRangePreset) => {
+    setDateRangeState(r);
+    localStorage.setItem(DATE_RANGE_KEY, r);
+  };
+
   const value = useMemo<AppContextValue>(
     () => ({
       selectedRepoId,
@@ -81,8 +124,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setTheme: setThemeState,
       myEmail,
       setMyEmail,
+      dateRange,
+      setDateRange,
     }),
-    [selectedRepoId, theme, myEmail],
+    [selectedRepoId, theme, myEmail, dateRange],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

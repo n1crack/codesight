@@ -50,8 +50,8 @@ export const api = {
     invoke<LanguageStat[]>("get_language_breakdown", { id }),
   getCodeChurn: (id: number, granularity: TimelineGranularity) =>
     invoke<ChurnPoint[]>("get_code_churn", { id, granularity }),
-  getFileHotspots: (id: number, limit: number) =>
-    invoke<FileHotspot[]>("get_file_hotspots", { id, limit }),
+  getFileHotspots: (id: number, limit: number, since?: string | null) =>
+    invoke<FileHotspot[]>("get_file_hotspots", { id, limit, since: since ?? null }),
   getActivityPatterns: (id: number) =>
     invoke<ActivityPatterns>("get_activity_patterns", { id }),
   getCommitMessageStats: (id: number) =>
@@ -74,8 +74,11 @@ export const api = {
     }),
   searchCommits: (id: number, params: SearchParams) =>
     invoke<CommitInfo[]>("search_commits", { id, params }),
-  getOwnershipReport: (id: number) =>
-    invoke<OwnershipReport>("get_ownership_report", { id }),
+  getOwnershipReport: (id: number, since?: string | null) =>
+    invoke<OwnershipReport>("get_ownership_report", {
+      id,
+      since: since ?? null,
+    }),
   getCommitGraph: (id: number, limit: number) =>
     invoke<GraphCommit[]>("get_commit_graph", { id, limit }),
   getCommitDetail: (id: number, oid: string) =>
@@ -90,17 +93,31 @@ export const api = {
       email: email ?? null,
     }),
   listKnownAuthors: () => invoke<Contributor[]>("list_known_authors"),
-  getFileCouplings: (id: number, limit: number) =>
-    invoke<FileCoupling[]>("get_file_couplings", { id, limit }),
-  getDirectoryHotspots: (id: number, maxDepth: number, limit: number) =>
+  getFileCouplings: (id: number, limit: number, since?: string | null) =>
+    invoke<FileCoupling[]>("get_file_couplings", {
+      id,
+      limit,
+      since: since ?? null,
+    }),
+  getDirectoryHotspots: (
+    id: number,
+    maxDepth: number,
+    limit: number,
+    since?: string | null,
+  ) =>
     invoke<DirectoryHotspot[]>("get_directory_hotspots", {
       id,
       maxDepth,
       limit,
+      since: since ?? null,
     }),
   getRepoHealth: (id: number) => invoke<RepoHealth>("get_repo_health", { id }),
-  getChurnRisk: (id: number, limit: number) =>
-    invoke<ChurnRiskFile[]>("get_churn_risk", { id, limit }),
+  getChurnRisk: (id: number, limit: number, since?: string | null) =>
+    invoke<ChurnRiskFile[]>("get_churn_risk", {
+      id,
+      limit,
+      since: since ?? null,
+    }),
   getContributorCohort: (id: number) =>
     invoke<ContributorCohortPoint[]>("get_contributor_cohort", { id }),
 };

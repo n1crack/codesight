@@ -309,7 +309,14 @@
   },
   "topbar": {
     "refresh": "Yenile",
-    "refreshTitle": "Verileri yenile"
+    "refreshTitle": "Verileri yenile",
+    "dateRange": "Aralık",
+    "dateAll": "Tüm zaman",
+    "date7d": "Son 7 gün",
+    "date30d": "Son 30 gün",
+    "date90d": "Son 90 gün",
+    "date6m": "Son 6 ay",
+    "date1y": "Son 1 yıl"
   },
   "settings": {
     "title": "Ayarlar",

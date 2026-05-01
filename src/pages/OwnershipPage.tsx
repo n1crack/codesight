@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
-import { useAppState } from "@/state/AppState";
+import { resolveDateRangeSince, useAppState } from "@/state/AppState";
 import { cn } from "@/lib/utils";
 import type { OwnershipAlert } from "@/types";
 
@@ -113,9 +113,10 @@ export function OwnershipPage() {
     enabled: selectedRepoId != null,
   });
 
+  const since = resolveDateRangeSince(useAppState().dateRange);
   const ownership = useQuery({
-    queryKey: ["ownership", selectedRepoId],
-    queryFn: () => api.getOwnershipReport(selectedRepoId!),
+    queryKey: ["ownership", selectedRepoId, since],
+    queryFn: () => api.getOwnershipReport(selectedRepoId!, since),
     enabled: selectedRepoId != null,
   });
 

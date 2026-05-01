@@ -162,9 +162,10 @@ async fn get_file_hotspots(
     state: tauri::State<'_, AppState>,
     id: i64,
     limit: usize,
+    since: Option<String>,
 ) -> AppResult<Vec<FileHotspot>> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || get_file_hotspots_impl(&db, id, limit))
+    tauri::async_runtime::spawn_blocking(move || get_file_hotspots_impl(&db, id, limit, since))
         .await
         .unwrap()
 }
@@ -294,9 +295,10 @@ async fn search_commits(
 async fn get_ownership_report(
     state: tauri::State<'_, AppState>,
     id: i64,
+    since: Option<String>,
 ) -> AppResult<OwnershipReport> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || get_ownership_report_impl(&db, id))
+    tauri::async_runtime::spawn_blocking(move || get_ownership_report_impl(&db, id, since))
         .await
         .unwrap()
 }
@@ -377,9 +379,10 @@ async fn get_file_couplings(
     state: tauri::State<'_, AppState>,
     id: i64,
     limit: usize,
+    since: Option<String>,
 ) -> AppResult<Vec<FileCoupling>> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || get_file_couplings_impl(&db, id, limit))
+    tauri::async_runtime::spawn_blocking(move || get_file_couplings_impl(&db, id, limit, since))
         .await
         .unwrap()
 }
@@ -390,10 +393,11 @@ async fn get_directory_hotspots(
     id: i64,
     max_depth: usize,
     limit: usize,
+    since: Option<String>,
 ) -> AppResult<Vec<DirectoryHotspot>> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        get_directory_hotspots_impl(&db, id, max_depth, limit)
+        get_directory_hotspots_impl(&db, id, max_depth, limit, since)
     })
     .await
     .unwrap()
@@ -415,9 +419,10 @@ async fn get_churn_risk(
     state: tauri::State<'_, AppState>,
     id: i64,
     limit: usize,
+    since: Option<String>,
 ) -> AppResult<Vec<ChurnRiskFile>> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || get_churn_risk_impl(&db, id, limit))
+    tauri::async_runtime::spawn_blocking(move || get_churn_risk_impl(&db, id, limit, since))
         .await
         .unwrap()
 }

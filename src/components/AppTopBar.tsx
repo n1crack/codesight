@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { RotateCw, Search } from "lucide-react";
+import { Calendar, RotateCw, Search } from "lucide-react";
 
 import { api } from "@/api";
+import { Select } from "@/components/ui/Select";
 import { useAppState } from "@/state/AppState";
 import { cn } from "@/lib/utils";
+import type { DateRangePreset } from "@/state/AppState";
 
 const isMac =
   typeof navigator !== "undefined" &&
@@ -14,7 +16,7 @@ const isMac =
 export function AppTopBar() {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const { selectedRepoId } = useAppState();
+  const { selectedRepoId, dateRange, setDateRange } = useAppState();
   const [spinning, setSpinning] = useState(false);
 
   useEffect(() => {
@@ -39,8 +41,29 @@ export function AppTopBar() {
     window.dispatchEvent(new CustomEvent("codesight:open-palette"));
   };
 
+  const dateRangeOptions: { value: DateRangePreset; label: string }[] = [
+    { value: "all", label: t("topbar.dateAll") },
+    { value: "7d", label: t("topbar.date7d") },
+    { value: "30d", label: t("topbar.date30d") },
+    { value: "90d", label: t("topbar.date90d") },
+    { value: "6m", label: t("topbar.date6m") },
+    { value: "1y", label: t("topbar.date1y") },
+  ];
+
   return (
     <div className="flex h-9 shrink-0 items-center justify-end gap-2 border-b bg-background/60 px-3 backdrop-blur">
+      <div
+        className="flex items-center gap-1.5"
+        title={t("topbar.dateRange")}
+      >
+        <Calendar size={12} className="text-muted-foreground" />
+        <Select<DateRangePreset>
+          value={dateRange}
+          onChange={setDateRange}
+          options={dateRangeOptions}
+          className="h-7 text-xs"
+        />
+      </div>
       <button
         type="button"
         onClick={openPalette}

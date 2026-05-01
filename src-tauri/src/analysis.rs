@@ -743,7 +743,18 @@ fn bucket_key(ts: DateTime<Utc>, granularity: &str) -> String {
     }
 }
 
-fn walk_diffs<F>(repo: &GitRepository, mut on_diff: F) -> AppResult<()>
+fn walk_diffs<F>(repo: &GitRepository, on_diff: F) -> AppResult<()>
+where
+    F: FnMut(&git2::Commit<'_>, &git2::Diff<'_>) -> AppResult<()>,
+{
+    walk_diffs_since(repo, None, on_diff)
+}
+
+fn walk_diffs_since<F>(
+    repo: &GitRepository,
+    since: Option<DateTime<Utc>>,
+    mut on_diff: F,
+) -> AppResult<()>
 where
     F: FnMut(&git2::Commit<'_>, &git2::Diff<'_>) -> AppResult<()>,
 {
@@ -760,6 +771,12 @@ where
             continue;
         }
         let commit = repo.find_commit(oid)?;
+        if let Some(s) = since {
+            if commit_time(&commit) < s {
+                // Sort::TIME → newer first; once below cutoff, all subsequent are older
+                break;
+            }
+        }
         let new_tree = commit.tree()?;
         let parent_tree = commit.parent(0).ok().and_then(|p| p.tree().ok());
         let diff = repo.diff_tree_to_tree(
@@ -811,10 +828,16 @@ pub fn get_file_hotspots_impl(
     db: &crate::db::Db,
     id: i64,
     limit: usize,
+    since: Option<String>,
 ) -> AppResult<Vec<FileHotspot>> {
     let repo_meta = get_repository_impl(db, id)?;
     let head = current_head(&repo_meta.path);
-    let cache_key = format!("fileHotspots:{}", limit);
+    let since_dt = since.as_deref().and_then(parse_date);
+    let cache_key = format!(
+        "fileHotspots:{}:since={}",
+        limit,
+        since.as_deref().unwrap_or("")
+    );
     cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
@@ -826,7 +849,7 @@ pub fn get_file_hotspots_impl(
     }
     let mut by_path: HashMap<String, Acc> = HashMap::new();
 
-    walk_diffs(&repo, |commit, diff| {
+    walk_diffs_since(&repo, since_dt, |commit, diff| {
         let ts = commit_time(commit);
         let delta_count = diff.deltas().len();
         for idx in 0..delta_count {
@@ -1623,10 +1646,13 @@ pub fn search_commits_impl(
 pub fn get_ownership_report_impl(
     db: &crate::db::Db,
     id: i64,
+    since: Option<String>,
 ) -> AppResult<OwnershipReport> {
     let repo_meta = get_repository_impl(db, id)?;
     let head = current_head(&repo_meta.path);
-    cached(db, id, &head, "ownership", move || {
+    let since_dt = since.as_deref().and_then(parse_date);
+    let cache_key = format!("ownership:since={}", since.as_deref().unwrap_or(""));
+    cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     struct AuthorAcc {
@@ -1644,7 +1670,7 @@ pub fn get_ownership_report_impl(
     }
     let mut by_file: HashMap<String, FileAcc> = HashMap::new();
 
-    walk_diffs(&repo, |commit, diff| {
+    walk_diffs_since(&repo, since_dt, |commit, diff| {
         let author_email = commit.author().email().unwrap_or("").to_lowercase();
         let author_name = commit.author().name().unwrap_or("unknown").to_string();
         let stats = diff.stats()?;
@@ -1808,10 +1834,16 @@ pub fn get_churn_risk_impl(
     db: &crate::db::Db,
     id: i64,
     limit: usize,
+    since: Option<String>,
 ) -> AppResult<Vec<ChurnRiskFile>> {
     let repo_meta = get_repository_impl(db, id)?;
     let head = current_head(&repo_meta.path);
-    let cache_key = format!("churnRisk:{}", limit);
+    let since_dt = since.as_deref().and_then(parse_date);
+    let cache_key = format!(
+        "churnRisk:{}:since={}",
+        limit,
+        since.as_deref().unwrap_or("")
+    );
     cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
     let now = Utc::now();
@@ -1823,7 +1855,7 @@ pub fn get_churn_risk_impl(
     }
     let mut by_file: HashMap<String, Acc> = HashMap::new();
 
-    walk_diffs(&repo, |commit, diff| {
+    walk_diffs_since(&repo, since_dt, |commit, diff| {
         let author_email = commit.author().email().unwrap_or("").to_lowercase();
         let author_name = commit.author().name().unwrap_or("unknown").to_string();
         let ts = commit_time(commit);
@@ -2577,16 +2609,22 @@ pub fn get_file_couplings_impl(
     db: &crate::db::Db,
     id: i64,
     limit: usize,
+    since: Option<String>,
 ) -> AppResult<Vec<FileCoupling>> {
     let repo_meta = get_repository_impl(db, id)?;
     let head = current_head(&repo_meta.path);
-    let cache_key = format!("couplings:{}", limit);
+    let since_dt = since.as_deref().and_then(parse_date);
+    let cache_key = format!(
+        "couplings:{}:since={}",
+        limit,
+        since.as_deref().unwrap_or("")
+    );
     cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
     let mut counts: HashMap<(String, String), u32> = HashMap::new();
 
-    walk_diffs(&repo, |_commit, diff| {
+    walk_diffs_since(&repo, since_dt, |_commit, diff| {
         let count = diff.deltas().len();
         if count > 50 || count < 2 {
             return Ok(());
@@ -2633,10 +2671,17 @@ pub fn get_directory_hotspots_impl(
     id: i64,
     max_depth: usize,
     limit: usize,
+    since: Option<String>,
 ) -> AppResult<Vec<DirectoryHotspot>> {
     let repo_meta = get_repository_impl(db, id)?;
     let head = current_head(&repo_meta.path);
-    let cache_key = format!("dirHotspots:{}:{}", max_depth, limit);
+    let since_dt = since.as_deref().and_then(parse_date);
+    let cache_key = format!(
+        "dirHotspots:{}:{}:since={}",
+        max_depth,
+        limit,
+        since.as_deref().unwrap_or("")
+    );
     cached(db, id, &head, &cache_key, move || {
     let repo = open(&repo_meta.path)?;
 
@@ -2649,7 +2694,7 @@ pub fn get_directory_hotspots_impl(
     let mut by_dir: HashMap<String, Acc> = HashMap::new();
     let depth = max_depth.max(1);
 
-    walk_diffs(&repo, |commit, diff| {
+    walk_diffs_since(&repo, since_dt, |commit, diff| {
         let oid = commit.id();
         let count = diff.deltas().len();
         for idx in 0..count {

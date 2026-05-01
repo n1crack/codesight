@@ -1,5 +1,11 @@
 import { useRef, useState } from "react";
 
+const OFFSET = 12;
+const EDGE_PAD = 8;
+// rough fallback width before first measurement; updated after first paint
+const DEFAULT_W = 220;
+const DEFAULT_H = 36;
+
 export function useChartTooltip<T>() {
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -7,11 +13,20 @@ export function useChartTooltip<T>() {
 
   const updatePos = (clientX: number, clientY: number) => {
     const tip = tooltipRef.current;
-    const ctn = containerRef.current;
-    if (!tip || !ctn) return;
-    const rect = ctn.getBoundingClientRect();
-    const x = clientX - rect.left + 12;
-    const y = clientY - rect.top + 12;
+    if (!tip) return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const r = tip.getBoundingClientRect();
+    const tipW = r.width || DEFAULT_W;
+    const tipH = r.height || DEFAULT_H;
+
+    let x = clientX + OFFSET;
+    let y = clientY + OFFSET;
+    if (x + tipW > w - EDGE_PAD) x = clientX - tipW - OFFSET;
+    if (y + tipH > h - EDGE_PAD) y = clientY - tipH - OFFSET;
+    if (x < EDGE_PAD) x = EDGE_PAD;
+    if (y < EDGE_PAD) y = EDGE_PAD;
+
     tip.style.transform = `translate3d(${x}px, ${y}px, 0)`;
   };
 

@@ -203,6 +203,7 @@ function MatrixChart({
                 onMouseEnter={(e) =>
                   tip.enter({ dow: d, hour: h, value: v }, e)
                 }
+                onMouseLeave={() => tip.setActive(null)}
               />
             );
           }),
@@ -262,6 +263,7 @@ function BarsRow({
                 rx={3}
                 className="fill-[var(--color-chart-1)] opacity-80 hover:opacity-100"
                 onMouseEnter={(e) => tip.enter({ index: i, value: v }, e)}
+                onMouseLeave={() => tip.setActive(null)}
               />
               {showLabel && (
                 <text
