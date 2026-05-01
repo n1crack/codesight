@@ -45,10 +45,34 @@
     "noReposBody": "Bir depo ekleyin veya bir klasörü tarayarak başlayın.",
     "remove": "Depoyu kaldır",
     "confirmRemove": "\"{{name}}\" codesight'tan kaldırılsın mı? Diskteki dosyalar etkilenmez.",
-    "filterPlaceholder": "Depo filtrele…",
+    "filterPlaceholder": "Depo filtrele veya #etiket…",
     "noMatch": "Eşleşen depo yok",
     "dragHint": "Sürükle ya da çift-tıklayıp sıfırla",
-    "last30Suffix": "{{count}} / 30g"
+    "last30Suffix": "{{count}} / 30g",
+    "manageTags": "Etiketleri yönet",
+    "addTag": "Etiket ekle",
+    "tagPlaceholder": "etiket adı (örn. iş)",
+    "untagged": "Etiketsiz",
+    "newTag": "Yeni etiket",
+    "tags": "Etiketler"
+  },
+  "tagManager": {
+    "title": "Etiketleri yönet",
+    "subtitle": "Depoları renkli etiketlerle grupla",
+    "newTag": "Yeni etiket",
+    "namePlaceholder": "Etiket adı",
+    "create": "Oluştur",
+    "rename": "Yeniden adlandır",
+    "color": "Renk",
+    "delete": "Sil",
+    "confirmDelete": "\"{{name}}\" etiketi silinsin mi? Depo dosyaları etkilenmez.",
+    "noTags": "Henüz etiket yok. Gruplamaya başlamak için bir tane oluştur.",
+    "repoCount": "{{count}} depo",
+    "assignedRepos": "Atanmış depolar",
+    "selectAll": "Tümünü seç",
+    "selectNone": "Temizle",
+    "save": "Kaydet",
+    "close": "Kapat"
   },
   "common": {
     "loading": "Yükleniyor…",
@@ -57,7 +81,8 @@
     "cancel": "İptal",
     "ok": "Tamam",
     "selectRepo": "Başlamak için bir depo seçin",
-    "noData": "Veri yok"
+    "noData": "Veri yok",
+    "exportPng": "PNG indir"
   },
   "overview": {
     "title": "Genel Bakış",
@@ -226,7 +251,9 @@
     "selectRepoFirst": "Bu commit'i yüklemek için önce bir depo seçin.",
     "noFileChanges": "Bu commit'te dosya değişikliği yok (muhtemelen merge veya boş commit).",
     "expandAll": "Tümünü aç",
-    "collapseAll": "Tümünü kapat"
+    "collapseAll": "Tümünü kapat",
+    "viewUnified": "Birleşik",
+    "viewSplit": "Yan yana"
   },
   "hotspotsPage": {
     "title": "Sıcak Noktalar",

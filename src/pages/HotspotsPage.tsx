@@ -12,6 +12,7 @@ import { useAppState } from "@/state/AppState";
 
 import { Link } from "react-router-dom";
 
+import { DateRangeBadge } from "@/components/DateRangeBadge";
 import { cn } from "@/lib/utils";
 import { resolveDateRangeSince } from "@/state/AppState";
 import type { ChurnRiskLevel } from "@/types";
@@ -38,16 +39,19 @@ export function HotspotsPage() {
         title={t("hotspotsPage.title")}
         subtitle={t("hotspotsPage.subtitle")}
         actions={
-          <Tabs<TabKey>
-            value={tab}
-            onChange={setTab}
-            items={[
-              { value: "files", label: t("hotspotsPage.tabFiles") },
-              { value: "directories", label: t("hotspotsPage.tabDirectories") },
-              { value: "couplings", label: t("hotspotsPage.tabCouplings") },
-              { value: "risk", label: t("hotspotsPage.tabRisk") },
-            ]}
-          />
+          <div className="flex items-center gap-2">
+            <DateRangeBadge />
+            <Tabs<TabKey>
+              value={tab}
+              onChange={setTab}
+              items={[
+                { value: "files", label: t("hotspotsPage.tabFiles") },
+                { value: "directories", label: t("hotspotsPage.tabDirectories") },
+                { value: "couplings", label: t("hotspotsPage.tabCouplings") },
+                { value: "risk", label: t("hotspotsPage.tabRisk") },
+              ]}
+            />
+          </div>
         }
       />
       <div className="p-6">

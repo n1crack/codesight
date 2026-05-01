@@ -3,26 +3,29 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
+  Activity,
+  Brain,
+  ChevronRight,
+  FolderGit2,
   FolderSearch,
-  Plus,
-  Trash2,
   GitBranch,
   GitCompare,
-  Settings,
-  Activity,
-  Search,
-  Home,
-  FolderGit2,
-  Inbox,
-  Brain,
   GitGraph,
+  Home,
+  Inbox,
+  Plus,
+  Search,
+  Settings,
+  Trash2,
 } from "lucide-react";
 
 import { api, pickRepositoryDir, pickScanRoot } from "@/api";
+import { ManageTagsButton, TagManager } from "@/components/TagManager";
 import { Sparkline } from "@/components/Sparkline";
 import { useAppState } from "@/state/AppState";
+import { classesFor } from "@/lib/tagColors";
 import { cn } from "@/lib/utils";
-import type { Repository } from "@/types";
+import type { Repository, Tag } from "@/types";
 
 const GLOBAL_NAV = [
   { to: "/", icon: Home, key: "nav.home" },
@@ -41,6 +44,88 @@ const FILTER_THRESHOLD = 6;
 const TOP_PANE_KEY = "codesight.sidebarTopPane";
 const TOP_PANE_MIN = 60;
 const TOP_PANE_MAX = 700;
+const COLLAPSED_GROUPS_KEY = "codesight.collapsedGroups";
+
+interface RepoGroup {
+  key: string;        // "tag-3" or "untagged"
+  tag: Tag | null;    // null = untagged
+  label: string;
+  repos: Repository[];
+}
+
+function useCollapsedGroups() {
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(COLLAPSED_GROUPS_KEY);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw) as string[];
+      return new Set(arr);
+    } catch {
+      return new Set();
+    }
+  });
+  const toggle = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        localStorage.setItem(
+          COLLAPSED_GROUPS_KEY,
+          JSON.stringify(Array.from(next)),
+        );
+      } catch {
+        // ignore quota errors
+      }
+      return next;
+    });
+  };
+  return { collapsed, toggle };
+}
+
+function buildGroups(
+  repos: Repository[],
+  untaggedLabel: string,
+): RepoGroup[] {
+  const groupMap = new Map<number, { tag: Tag; repos: Repository[] }>();
+  const untagged: Repository[] = [];
+
+  for (const r of repos) {
+    if (r.tags.length === 0) {
+      untagged.push(r);
+    } else {
+      for (const tag of r.tags) {
+        if (!groupMap.has(tag.id)) {
+          groupMap.set(tag.id, { tag, repos: [] });
+        }
+        groupMap.get(tag.id)!.repos.push(r);
+      }
+    }
+  }
+
+  const groups: RepoGroup[] = Array.from(groupMap.values())
+    .sort(
+      (a, b) =>
+        a.tag.sort_order - b.tag.sort_order ||
+        a.tag.name.localeCompare(b.tag.name),
+    )
+    .map(({ tag, repos: rs }) => ({
+      key: `tag-${tag.id}`,
+      tag,
+      label: tag.name,
+      repos: rs,
+    }));
+
+  if (untagged.length > 0) {
+    groups.push({
+      key: "untagged",
+      tag: null,
+      label: untaggedLabel,
+      repos: untagged,
+    });
+  }
+  return groups;
+}
 
 export function Sidebar() {
   const { t } = useTranslation();
@@ -49,12 +134,14 @@ export function Sidebar() {
   const location = useLocation();
   const { selectedRepoId, setSelectedRepoId } = useAppState();
   const [filter, setFilter] = useState("");
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const topPaneRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [topPaneH, setTopPaneH] = useState<number | null>(() => {
     const raw = Number(localStorage.getItem(TOP_PANE_KEY) || "");
     return Number.isFinite(raw) && raw > 0 ? raw : null;
   });
+  const { collapsed, toggle } = useCollapsedGroups();
 
   useEffect(() => {
     if (topPaneH == null) {
@@ -89,9 +176,7 @@ export function Sidebar() {
     window.addEventListener("pointerup", onUp);
   };
 
-  const resetTopPane = () => {
-    setTopPaneH(null);
-  };
+  const resetTopPane = () => setTopPaneH(null);
 
   const onRepoClick = (id: number) => {
     setSelectedRepoId(id);
@@ -174,13 +259,23 @@ export function Sidebar() {
   const all = repos.data ?? [];
   const showFilter = all.length >= FILTER_THRESHOLD;
   const q = filter.trim().toLowerCase();
-  const filtered = q
-    ? all.filter(
-        (r) =>
-          r.name.toLowerCase().includes(q) ||
-          r.path.toLowerCase().includes(q),
-      )
-    : all;
+  const filtered = !q
+    ? all
+    : q.startsWith("#")
+      ? all.filter((r) =>
+          r.tags.some((tag) => tag.name.toLowerCase().includes(q.slice(1))),
+        )
+      : all.filter(
+          (r) =>
+            r.name.toLowerCase().includes(q) ||
+            r.path.toLowerCase().includes(q) ||
+            r.tags.some((tag) => tag.name.toLowerCase().includes(q)),
+        );
+
+  const groups = useMemo(
+    () => buildGroups(filtered, t("sidebar.untagged")),
+    [filtered, t],
+  );
 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
@@ -190,7 +285,9 @@ export function Sidebar() {
         </div>
         <div className="flex flex-col">
           <span className="text-sm font-semibold">{t("app.name")}</span>
-          <span className="text-[11px] text-muted-foreground">{t("app.tagline")}</span>
+          <span className="text-[11px] text-muted-foreground">
+            {t("app.tagline")}
+          </span>
         </div>
       </div>
 
@@ -274,6 +371,7 @@ export function Sidebar() {
           )}
         </div>
         <div className="flex items-center gap-0.5">
+          <ManageTagsButton onOpen={() => setTagManagerOpen(true)} />
           <button
             type="button"
             aria-label={t("sidebar.addRepo")}
@@ -317,130 +415,254 @@ export function Sidebar() {
 
       <div className="flex-1 overflow-y-auto px-2 pb-3 pt-1">
         {repos.isLoading && (
-          <p className="px-2 py-1 text-xs text-muted-foreground">{t("common.loading")}</p>
+          <p className="px-2 py-1 text-xs text-muted-foreground">
+            {t("common.loading")}
+          </p>
         )}
         {repos.data && repos.data.length === 0 && (
-          <div className="m-2 flex flex-col items-start gap-2 rounded-lg border border-dashed border-sidebar-border p-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <Inbox size={16} />
-            </div>
-            <div>
-              <div className="text-sm font-medium">{t("sidebar.noReposTitle")}</div>
-              <p className="text-[11px] text-muted-foreground">
-                {t("sidebar.noReposBody")}
-              </p>
-            </div>
-            <div className="flex w-full gap-1">
-              <button
-                type="button"
-                onClick={() => addOne.mutate()}
-                disabled={addOne.isPending}
-                className="flex flex-1 items-center justify-center gap-1 rounded-md bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              >
-                <Plus size={12} /> {t("sidebar.addRepo")}
-              </button>
-              <button
-                type="button"
-                onClick={() => scan.mutate()}
-                disabled={scan.isPending}
-                className="flex flex-1 items-center justify-center gap-1 rounded-md border border-input px-2 py-1.5 text-xs hover:bg-sidebar-accent disabled:opacity-50"
-              >
-                <FolderSearch size={12} /> {t("sidebar.scanFolder").split(" ")[0]}
-              </button>
-            </div>
-          </div>
+          <EmptyRepoState
+            onAdd={() => addOne.mutate()}
+            onScan={() => scan.mutate()}
+            disabled={addOne.isPending || scan.isPending}
+          />
         )}
-        {showFilter && filtered.length === 0 && (
-          <p className="px-2 py-1 text-xs text-muted-foreground">{t("sidebar.noMatch")}</p>
+        {showFilter && filtered.length === 0 && repos.data && repos.data.length > 0 && (
+          <p className="px-2 py-1 text-xs text-muted-foreground">
+            {t("sidebar.noMatch")}
+          </p>
         )}
-        <ul className="flex flex-col gap-0.5">
-          {filtered.map((r) => {
-            const isActive = r.id === selectedRepoId;
-            const days = sparkByRepo.get(r.id);
-            const total = days?.reduce((a, b) => a + b, 0) ?? 0;
-            const sparkTitle = total
-              ? t("sparkline.last30Days", { count: total })
-              : t("sparkline.noActivity");
-            return (
-              <li key={r.id} className="relative">
-                {isActive && (
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary"
-                  />
-                )}
-                <div
-                  className={cn(
-                    "group rounded-md transition-colors",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "hover:bg-sidebar-accent/50",
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => onRepoClick(r.id)}
-                    title={r.path}
-                    className="block w-full px-2 py-1.5 text-left"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <FolderGit2
-                        size={13}
-                        className={cn(
-                          "shrink-0",
-                          isActive ? "text-primary" : "text-muted-foreground",
-                        )}
-                      />
-                      <span
-                        className={cn(
-                          "min-w-0 flex-1 truncate text-sm",
-                          isActive ? "font-medium" : "",
-                        )}
-                      >
-                        {r.name}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label={t("sidebar.remove")}
-                        title={t("sidebar.remove")}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemove(r);
-                        }}
-                        className="hidden h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/15 hover:text-destructive group-hover:flex"
-                      >
-                        <Trash2 size={11} />
-                      </button>
-                    </div>
-                    {days && (
-                      <div className="mt-1 flex items-center gap-1.5 pl-[18px]">
-                        <Sparkline
-                          values={days}
-                          width={104}
-                          height={16}
-                          title={sparkTitle}
-                          className={cn(
-                            isActive
-                              ? "text-primary"
-                              : total > 0
-                                ? "text-foreground/80 group-hover:text-foreground"
-                                : "text-muted-foreground/60",
-                          )}
-                        />
-                        <span className="text-[10px] tabular-nums text-muted-foreground">
-                          {total
-                            ? t("sidebar.last30Suffix", { count: total })
-                            : "—"}
-                        </span>
-                      </div>
-                    )}
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        {groups.map((group) => (
+          <RepoGroupView
+            key={group.key}
+            group={group}
+            collapsed={collapsed.has(group.key)}
+            onToggle={() => toggle(group.key)}
+            selectedRepoId={selectedRepoId}
+            onRepoClick={onRepoClick}
+            onRepoRemove={handleRemove}
+            sparkByRepo={sparkByRepo}
+          />
+        ))}
       </div>
+
+      <TagManager
+        open={tagManagerOpen}
+        onClose={() => setTagManagerOpen(false)}
+      />
     </aside>
+  );
+}
+
+function RepoGroupView({
+  group,
+  collapsed,
+  onToggle,
+  selectedRepoId,
+  onRepoClick,
+  onRepoRemove,
+  sparkByRepo,
+}: {
+  group: RepoGroup;
+  collapsed: boolean;
+  onToggle: () => void;
+  selectedRepoId: number | null;
+  onRepoClick: (id: number) => void;
+  onRepoRemove: (r: Repository) => void;
+  sparkByRepo: Map<number, number[]>;
+}) {
+  const { t } = useTranslation();
+  const cls = group.tag ? classesFor(group.tag.color) : null;
+  return (
+    <div className="mb-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="group flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-sidebar-accent/30"
+      >
+        <ChevronRight
+          size={12}
+          className={cn(
+            "shrink-0 text-muted-foreground transition-transform",
+            !collapsed && "rotate-90",
+          )}
+        />
+        {cls ? (
+          <span className={cn("h-2 w-2 shrink-0 rounded-full", cls.dot)} />
+        ) : (
+          <span className="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40" />
+        )}
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-[11px] font-medium uppercase tracking-wide",
+            cls ? cls.text : "text-muted-foreground",
+          )}
+        >
+          {group.label}
+        </span>
+        <span className="text-[10px] tabular-nums text-muted-foreground">
+          {group.repos.length}
+        </span>
+      </button>
+      {!collapsed && (
+        <ul className="mt-0.5 flex flex-col gap-0.5 pl-2">
+          {group.repos.map((r) => (
+            <RepoRow
+              key={`${group.key}-${r.id}`}
+              repo={r}
+              isActive={r.id === selectedRepoId}
+              onClick={() => onRepoClick(r.id)}
+              onRemove={() => onRepoRemove(r)}
+              days={sparkByRepo.get(r.id)}
+              t={t}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function RepoRow({
+  repo,
+  isActive,
+  onClick,
+  onRemove,
+  days,
+  t,
+}: {
+  repo: Repository;
+  isActive: boolean;
+  onClick: () => void;
+  onRemove: () => void;
+  days?: number[];
+  t: (k: string, opts?: Record<string, unknown>) => string;
+}) {
+  const total = days?.reduce((a, b) => a + b, 0) ?? 0;
+  const sparkTitle = total
+    ? t("sparkline.last30Days", { count: total })
+    : t("sparkline.noActivity");
+  return (
+    <li className="relative">
+      {isActive && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-1 left-0 w-0.5 rounded-full bg-primary"
+        />
+      )}
+      <div
+        className={cn(
+          "group rounded-md transition-colors",
+          isActive
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "hover:bg-sidebar-accent/50",
+        )}
+      >
+        <div className="block w-full px-2 py-1.5 text-left">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onClick}
+              title={repo.path}
+              className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+            >
+              <FolderGit2
+                size={13}
+                className={cn(
+                  "shrink-0",
+                  isActive ? "text-primary" : "text-muted-foreground",
+                )}
+              />
+              <span
+                className={cn(
+                  "min-w-0 flex-1 truncate text-sm",
+                  isActive ? "font-medium" : "",
+                )}
+              >
+                {repo.name}
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label={t("sidebar.remove")}
+              title={t("sidebar.remove")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              className="hidden h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/15 hover:text-destructive group-hover:flex"
+            >
+              <Trash2 size={11} />
+            </button>
+          </div>
+          {days && (
+            <button
+              type="button"
+              onClick={onClick}
+              className="mt-1 flex items-center gap-1.5 pl-[18px]"
+            >
+              <Sparkline
+                values={days}
+                width={104}
+                height={16}
+                title={sparkTitle}
+                className={cn(
+                  isActive
+                    ? "text-primary"
+                    : total > 0
+                      ? "text-foreground/80 group-hover:text-foreground"
+                      : "text-muted-foreground/60",
+                )}
+              />
+              <span className="text-[10px] tabular-nums text-muted-foreground">
+                {total ? t("sidebar.last30Suffix", { count: total }) : "—"}
+              </span>
+            </button>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function EmptyRepoState({
+  onAdd,
+  onScan,
+  disabled,
+}: {
+  onAdd: () => void;
+  onScan: () => void;
+  disabled: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="m-2 flex flex-col items-start gap-2 rounded-lg border border-dashed border-sidebar-border p-3">
+      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+        <Inbox size={16} />
+      </div>
+      <div>
+        <div className="text-sm font-medium">{t("sidebar.noReposTitle")}</div>
+        <p className="text-[11px] text-muted-foreground">
+          {t("sidebar.noReposBody")}
+        </p>
+      </div>
+      <div className="flex w-full gap-1">
+        <button
+          type="button"
+          onClick={onAdd}
+          disabled={disabled}
+          className="flex flex-1 items-center justify-center gap-1 rounded-md bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          <Plus size={12} /> {t("sidebar.addRepo")}
+        </button>
+        <button
+          type="button"
+          onClick={onScan}
+          disabled={disabled}
+          className="flex flex-1 items-center justify-center gap-1 rounded-md border border-input px-2 py-1.5 text-xs hover:bg-sidebar-accent disabled:opacity-50"
+        >
+          <FolderSearch size={12} /> {t("sidebar.scanFolder").split(" ")[0]}
+        </button>
+      </div>
+    </div>
   );
 }

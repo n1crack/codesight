@@ -1,11 +1,15 @@
+import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Download } from "lucide-react";
 
 import { api } from "@/api";
+import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ChartTooltip } from "@/components/ChartTooltip";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
+import { exportSvgAsPng } from "@/lib/exportPng";
 import { useAppState } from "@/state/AppState";
 import { useChartTooltip } from "@/lib/useChartTooltip";
 import { cn } from "@/lib/utils";
@@ -42,12 +46,18 @@ interface MatrixCell {
 export function PatternsPage() {
   const { t } = useTranslation();
   const { selectedRepoId } = useAppState();
+  const matrixCardRef = useRef<HTMLDivElement>(null);
 
   const patterns = useQuery({
     queryKey: ["activity", selectedRepoId],
     queryFn: () => api.getActivityPatterns(selectedRepoId!),
     enabled: selectedRepoId != null,
   });
+
+  const onExportMatrix = () => {
+    const svg = matrixCardRef.current?.querySelector("svg");
+    if (svg) exportSvgAsPng(svg as SVGSVGElement, "activity-patterns.png");
+  };
 
   if (selectedRepoId == null) {
     return (
@@ -75,6 +85,17 @@ export function PatternsPage() {
             ? t("activity.totalCommits", { count: patterns.data.total })
             : t("activity.subtitle")
         }
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExportMatrix}
+            title={t("common.exportPng")}
+            disabled={!patterns.data}
+          >
+            <Download size={14} />
+          </Button>
+        }
       />
       <div className="flex flex-col gap-4 p-6">
         <Card>
@@ -82,17 +103,19 @@ export function PatternsPage() {
             <CardTitle>{t("activity.matrix")}</CardTitle>
           </CardHeader>
           <CardContent>
-            {patterns.isPending ? (
-              <Skeleton className="h-32 w-full" />
-            ) : patterns.data ? (
-              <MatrixChart
-                matrix={patterns.data.matrix}
-                matrixMax={matrixMax}
-                days={days}
-                width={width}
-                height={height}
-              />
-            ) : null}
+            <div ref={matrixCardRef}>
+              {patterns.isPending ? (
+                <Skeleton className="h-32 w-full" />
+              ) : patterns.data ? (
+                <MatrixChart
+                  matrix={patterns.data.matrix}
+                  matrixMax={matrixMax}
+                  days={days}
+                  width={width}
+                  height={height}
+                />
+              ) : null}
+            </div>
           </CardContent>
         </Card>
 

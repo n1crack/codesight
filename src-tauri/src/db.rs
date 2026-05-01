@@ -39,6 +39,42 @@ impl Db {
                 PRIMARY KEY (repo_id, key),
                 FOREIGN KEY (repo_id) REFERENCES repositories(id) ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS repo_tags (
+                repo_id INTEGER NOT NULL,
+                tag     TEXT NOT NULL,
+                PRIMARY KEY (repo_id, tag),
+                FOREIGN KEY (repo_id) REFERENCES repositories(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS tags (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                name        TEXT NOT NULL UNIQUE,
+                color       TEXT NOT NULL DEFAULT 'slate',
+                sort_order  INTEGER NOT NULL DEFAULT 0,
+                created_at  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS repo_tag_links (
+                repo_id INTEGER NOT NULL,
+                tag_id  INTEGER NOT NULL,
+                PRIMARY KEY (repo_id, tag_id),
+                FOREIGN KEY (repo_id) REFERENCES repositories(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id)  REFERENCES tags(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_repo_tag_links_tag ON repo_tag_links(tag_id);
+
+            -- One-shot migration from legacy repo_tags(string) → tags + repo_tag_links
+            INSERT OR IGNORE INTO tags (name, color, sort_order, created_at)
+                SELECT DISTINCT tag, 'slate', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                FROM repo_tags;
+
+            INSERT OR IGNORE INTO repo_tag_links (repo_id, tag_id)
+                SELECT rt.repo_id, t.id
+                FROM repo_tags rt
+                JOIN tags t ON t.name = rt.tag;
+
+            DROP TABLE IF EXISTS repo_tags;
             "#,
         )?;
         Ok(Self { conn: Mutex::new(conn) })

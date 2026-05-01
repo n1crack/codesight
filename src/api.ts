@@ -5,6 +5,9 @@ import type {
   ActivityPatterns,
   BranchInfo,
   ChurnPoint,
+  Tag,
+  TagColor,
+  TagWithStats,
   CommitInfo,
   CommitMessageStats,
   Contributor,
@@ -36,6 +39,23 @@ export const api = {
   addRepository: (path: string) => invoke<Repository>("add_repository", { path }),
   removeRepository: (id: number) => invoke<void>("remove_repository", { id }),
   refreshRepo: (id: number) => invoke<void>("refresh_repo", { id }),
+  // Repo tags (organization labels)
+  listRepoTags: () => invoke<TagWithStats[]>("list_repo_tags"),
+  createTag: (name: string, color: TagColor) =>
+    invoke<Tag>("create_tag", { name, color }),
+  updateTag: (id: number, patch: { name?: string; color?: TagColor }) =>
+    invoke<void>("update_tag", {
+      id,
+      name: patch.name ?? null,
+      color: patch.color ?? null,
+    }),
+  deleteTag: (id: number) => invoke<void>("delete_tag", { id }),
+  assignTag: (repoId: number, tagId: number) =>
+    invoke<void>("assign_tag", { repoId, tagId }),
+  unassignTag: (repoId: number, tagId: number) =>
+    invoke<void>("unassign_tag", { repoId, tagId }),
+  setTagRepos: (tagId: number, repoIds: number[]) =>
+    invoke<void>("set_tag_repos", { tagId, repoIds }),
   scanFolder: (folder: string) => invoke<Repository[]>("scan_folder", { folder }),
   getRepoSummary: (id: number) => invoke<RepoSummary>("get_repo_summary", { id }),
   getCommitHeatmap: (id: number, year: number) =>

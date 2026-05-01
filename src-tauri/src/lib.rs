@@ -27,8 +27,9 @@ use crate::analysis::{
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
 use crate::repo::{
-    add_repository_impl, list_repositories_impl, remove_repository_impl, scan_folder_impl,
-    Repository,
+    add_repository_impl, assign_tag_impl, create_tag_impl, delete_tag_impl,
+    list_repositories_impl, list_tags_with_stats_impl, remove_repository_impl, scan_folder_impl,
+    set_tag_repos_impl, unassign_tag_impl, update_tag_impl, Repository, Tag, TagWithStats,
 };
 
 pub struct AppState {
@@ -55,6 +56,85 @@ async fn list_repositories(state: tauri::State<'_, AppState>) -> AppResult<Vec<R
 async fn refresh_repo(state: tauri::State<'_, AppState>, id: i64) -> AppResult<()> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || db.invalidate_cache(id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn create_tag(
+    state: tauri::State<'_, AppState>,
+    name: String,
+    color: String,
+) -> AppResult<Tag> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || create_tag_impl(&db, &name, &color))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn update_tag(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    name: Option<String>,
+    color: Option<String>,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || update_tag_impl(&db, id, name, color))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn delete_tag(state: tauri::State<'_, AppState>, id: i64) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || delete_tag_impl(&db, id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn list_repo_tags(
+    state: tauri::State<'_, AppState>,
+) -> AppResult<Vec<TagWithStats>> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || list_tags_with_stats_impl(&db))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn assign_tag(
+    state: tauri::State<'_, AppState>,
+    repo_id: i64,
+    tag_id: i64,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || assign_tag_impl(&db, repo_id, tag_id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn unassign_tag(
+    state: tauri::State<'_, AppState>,
+    repo_id: i64,
+    tag_id: i64,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || unassign_tag_impl(&db, repo_id, tag_id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn set_tag_repos(
+    state: tauri::State<'_, AppState>,
+    tag_id: i64,
+    repo_ids: Vec<i64>,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || set_tag_repos_impl(&db, tag_id, repo_ids))
         .await
         .unwrap()
 }
@@ -454,6 +534,13 @@ pub fn run() {
             list_repositories,
             remove_repository,
             refresh_repo,
+            create_tag,
+            update_tag,
+            delete_tag,
+            list_repo_tags,
+            assign_tag,
+            unassign_tag,
+            set_tag_repos,
             scan_folder,
             get_repo_summary,
             get_commit_heatmap,

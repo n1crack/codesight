@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
+import { DateRangeBadge } from "@/components/DateRangeBadge";
 import { resolveDateRangeSince, useAppState } from "@/state/AppState";
 import { cn } from "@/lib/utils";
 import type { OwnershipAlert } from "@/types";
@@ -134,6 +135,7 @@ export function OwnershipPage() {
       <PageHeader
         title={t("ownership.title")}
         subtitle={summary.data?.repo.name ?? t("ownership.subtitle")}
+        actions={<DateRangeBadge />}
       />
       <div className="flex flex-col gap-4 p-6">
         {ownership.data?.alerts && ownership.data.alerts.length > 0 && (

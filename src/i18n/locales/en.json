@@ -45,10 +45,34 @@
     "noReposBody": "Add a single repo or scan a folder to get started.",
     "remove": "Remove repository",
     "confirmRemove": "Remove \"{{name}}\" from codesight? Files on disk are not affected.",
-    "filterPlaceholder": "Filter repos…",
+    "filterPlaceholder": "Filter repos or #tag…",
     "noMatch": "No repos match",
     "dragHint": "Drag to resize · double-click to reset",
-    "last30Suffix": "{{count}} / 30d"
+    "last30Suffix": "{{count}} / 30d",
+    "manageTags": "Manage tags",
+    "addTag": "Add tag",
+    "tagPlaceholder": "tag name (e.g. work)",
+    "untagged": "Untagged",
+    "newTag": "New tag",
+    "tags": "Tags"
+  },
+  "tagManager": {
+    "title": "Manage tags",
+    "subtitle": "Group repositories with colored labels",
+    "newTag": "New tag",
+    "namePlaceholder": "Tag name",
+    "create": "Create",
+    "rename": "Rename",
+    "color": "Color",
+    "delete": "Delete",
+    "confirmDelete": "Delete tag \"{{name}}\"? Repository files are not affected.",
+    "noTags": "No tags yet. Create one to start grouping.",
+    "repoCount": "{{count}} repos",
+    "assignedRepos": "Assigned repositories",
+    "selectAll": "Select all",
+    "selectNone": "Clear",
+    "save": "Save",
+    "close": "Close"
   },
   "common": {
     "loading": "Loading…",
@@ -57,7 +81,8 @@
     "cancel": "Cancel",
     "ok": "OK",
     "selectRepo": "Select a repository to begin",
-    "noData": "No data"
+    "noData": "No data",
+    "exportPng": "Export PNG"
   },
   "overview": {
     "title": "Overview",
@@ -226,7 +251,9 @@
     "selectRepoFirst": "Select a repository first to load this commit.",
     "noFileChanges": "This commit has no file changes (likely a merge or empty commit).",
     "expandAll": "Expand all",
-    "collapseAll": "Collapse all"
+    "collapseAll": "Collapse all",
+    "viewUnified": "Unified",
+    "viewSplit": "Split"
   },
   "hotspotsPage": {
     "title": "Hotspots",

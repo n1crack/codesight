@@ -1,9 +1,35 @@
+export type TagColor =
+  | "slate"
+  | "red"
+  | "orange"
+  | "amber"
+  | "emerald"
+  | "sky"
+  | "indigo"
+  | "fuchsia";
+
+export interface Tag {
+  id: number;
+  name: string;
+  color: TagColor;
+  sort_order: number;
+}
+
+export interface TagWithStats {
+  id: number;
+  name: string;
+  color: TagColor;
+  sortOrder: number;
+  repoCount: number;
+}
+
 export interface Repository {
   id: number;
   name: string;
   path: string;
   added_at: string;
   last_indexed_at: string | null;
+  tags: Tag[];
 }
 
 export interface RepoSummary {
