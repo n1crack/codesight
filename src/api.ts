@@ -11,6 +11,7 @@ import type {
   CommitInfo,
   CommitMessageStats,
   Contributor,
+  AuthorSpecialization,
   ChurnRiskFile,
   CoauthorPair,
   CommitDetail,
@@ -25,6 +26,7 @@ import type {
   HeatmapData,
   LanguageStat,
   OwnershipReport,
+  QualityReport,
   RepoHealth,
   RepoSparkline,
   RepoSummary,
@@ -136,6 +138,10 @@ export const api = {
     invoke<Contributor[]>("list_known_authors", { tagId: tagId ?? null }),
   getCoauthorPairs: (id: number, limit: number) =>
     invoke<CoauthorPair[]>("get_coauthor_pairs", { id, limit }),
+  getAuthorSpecialization: (id: number, email: string) =>
+    invoke<AuthorSpecialization>("get_author_specialization", { id, email }),
+  runQualityScan: (id: number) =>
+    invoke<QualityReport>("run_quality_scan", { id }),
   getFileCouplings: (id: number, limit: number, since?: string | null) =>
     invoke<FileCoupling[]>("get_file_couplings", {
       id,

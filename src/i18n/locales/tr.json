@@ -28,7 +28,8 @@
       "ownership": "Sahiplik",
       "authors": "Yazarlar",
       "messages": "Mesajlar",
-      "collaborators": "İşbirlikçiler"
+      "collaborators": "İşbirlikçiler",
+      "quality": "Kalite & Güvenlik"
     },
     "graph": {
       "title": "Grafik",
@@ -115,6 +116,8 @@
     "byDay": "Günlük",
     "commits": "Commit",
     "churn": "Değişim",
+    "velocity": "İvme",
+    "velocityHint": "Commit'lerin 4 bucket'lık hareketli ortalaması",
     "additions": "Eklenen",
     "deletions": "Silinen",
     "metric": "Metrik"
@@ -253,6 +256,30 @@
     "noData": "Co-authored commit bulunamadı.",
     "jointCommits": "{{count}} ortak commit",
     "lastCollab": "Son: {{date}}"
+  },
+  "specialization": {
+    "title": "Uzmanlaşma",
+    "subtitle": "Bu yazarın en çok dokunduğu diller ve klasörler",
+    "topLanguages": "Öne çıkan diller",
+    "topDirectories": "Öne çıkan klasörler",
+    "filesTouched": "{{count}} dosyaya dokunulmuş",
+    "byteShare": "{{bytes}} byte değişti"
+  },
+  "quality": {
+    "title": "Kalite & Güvenlik",
+    "subtitle": "HEAD ağacı taraması: secret, riskli dosya, TODO",
+    "scanning": "HEAD ağacı taranıyor…",
+    "filesScanned": "{{count}} dosya tarandı",
+    "noFindings": "Bulgu yok — temiz!",
+    "secrets": "Secret sızıntıları",
+    "secretsHint": "HEAD'deki pattern eşleşmeleri (geçmiş taranmadı)",
+    "riskyFiles": "Riskli dosyalar",
+    "riskyHint": "Repoya gönderilmiş hassas yollar",
+    "todos": "TODO / FIXME",
+    "todoCount": "{{count}} işaret",
+    "severityHigh": "yüksek",
+    "severityMedium": "orta",
+    "line": "Satır {{line}}"
   },
   "commit": {
     "title": "Commit",

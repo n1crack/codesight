@@ -35,7 +35,9 @@ export function TimelinePage() {
   const timeline = useQuery({
     queryKey: ["timeline", selectedRepoId, granularity],
     queryFn: () => api.getCommitTimeline(selectedRepoId!, granularity),
-    enabled: selectedRepoId != null && metric === "commits",
+    enabled:
+      selectedRepoId != null &&
+      (metric === "commits" || metric === "velocity"),
   });
 
   const churn = useQuery({
@@ -46,7 +48,25 @@ export function TimelinePage() {
 
   const chartData = useMemo<Array<Record<string, string | number>>>(() => {
     if (metric === "commits") {
-      return (timeline.data ?? []).map((p) => ({ bucket: p.bucket, count: p.count }));
+      return (timeline.data ?? []).map((p) => ({
+        bucket: p.bucket,
+        count: p.count,
+      }));
+    }
+    if (metric === "velocity") {
+      const data = timeline.data ?? [];
+      const window = 4;
+      return data.map((p, i) => {
+        const start = Math.max(0, i - window + 1);
+        const slice = data.slice(start, i + 1);
+        const avg =
+          slice.reduce((s, x) => s + x.count, 0) / Math.max(1, slice.length);
+        return {
+          bucket: p.bucket,
+          count: p.count,
+          velocity: Math.round(avg * 10) / 10,
+        };
+      });
     }
     return (churn.data ?? []).map((p) => ({
       bucket: p.bucket,
@@ -56,7 +76,7 @@ export function TimelinePage() {
   }, [metric, timeline.data, churn.data]);
 
   const isLoading =
-    metric === "commits" ? timeline.isPending : churn.isPending;
+    metric === "churn" ? churn.isPending : timeline.isPending;
 
   if (selectedRepoId == null) {
     return (
@@ -80,6 +100,7 @@ export function TimelinePage() {
               items={[
                 { value: "commits", label: t("timeline.commits") },
                 { value: "churn", label: t("timeline.churn") },
+                { value: "velocity", label: t("timeline.velocity") },
               ]}
             />
             <Tabs<TimelineGranularity>
@@ -98,8 +119,17 @@ export function TimelinePage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              {metric === "commits" ? t("timeline.commits") : t("timeline.churn")}
+              {metric === "commits"
+                ? t("timeline.commits")
+                : metric === "churn"
+                  ? t("timeline.churn")
+                  : t("timeline.velocity")}
             </CardTitle>
+            {metric === "velocity" && (
+              <div className="text-xs text-muted-foreground">
+                {t("timeline.velocityHint")}
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             <div className="h-72 w-full">
@@ -168,7 +198,7 @@ export function TimelinePage() {
                         return [v, label];
                       }}
                     />
-                    {metric === "commits" ? (
+                    {metric === "commits" && (
                       <Area
                         type="monotone"
                         dataKey="count"
@@ -176,7 +206,30 @@ export function TimelinePage() {
                         fill="url(#commitFill)"
                         strokeWidth={2}
                       />
-                    ) : (
+                    )}
+                    {metric === "velocity" && (
+                      <>
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Area
+                          type="monotone"
+                          dataKey="count"
+                          name={t("timeline.commits")}
+                          stroke="var(--color-chart-2)"
+                          fill="var(--color-chart-2)"
+                          fillOpacity={0.15}
+                          strokeWidth={1}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="velocity"
+                          name={t("timeline.velocity")}
+                          stroke="var(--color-chart-1)"
+                          fill="url(#commitFill)"
+                          strokeWidth={2.5}
+                        />
+                      </>
+                    )}
+                    {metric === "churn" && (
                       <>
                         <Legend wrapperStyle={{ fontSize: 12 }} />
                         <Area

@@ -243,6 +243,68 @@ pub struct CoauthorPair {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LanguageShare {
+    pub language: String,
+    pub files: u32,
+    pub bytes_changed: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectoryShare {
+    pub path: String,
+    pub commits: u32,
+    pub bytes_changed: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorSpecialization {
+    pub email: String,
+    pub top_languages: Vec<LanguageShare>,
+    pub top_directories: Vec<DirectoryShare>,
+    pub total_files_touched: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecretHit {
+    pub path: String,
+    pub line: u32,
+    pub pattern_name: String,
+    pub severity: String, // "high" | "medium"
+    pub masked: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RiskyFile {
+    pub path: String,
+    pub reason: String,
+    pub severity: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TodoHit {
+    pub path: String,
+    pub line: u32,
+    pub kind: String,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QualityReport {
+    pub secrets: Vec<SecretHit>,
+    pub risky_files: Vec<RiskyFile>,
+    pub todos: Vec<TodoHit>,
+    pub todo_count: u32,
+    pub files_scanned: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GraphCommit {
     pub id: String,
     pub short_id: String,
@@ -1976,6 +2038,118 @@ pub fn get_churn_risk_impl(
     })
 }
 
+pub fn get_author_specialization_impl(
+    db: &crate::db::Db,
+    id: i64,
+    email: &str,
+) -> AppResult<AuthorSpecialization> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    let cache_key = format!("specialization:{}", email);
+    let email_owned = email.to_string();
+    cached(db, id, &head, &cache_key, move || {
+        let repo = open(&repo_meta.path)?;
+
+        struct LangAcc {
+            files: std::collections::HashSet<String>,
+            bytes_changed: u64,
+        }
+        struct DirAcc {
+            commits: std::collections::HashSet<git2::Oid>,
+            bytes_changed: u64,
+        }
+        let mut by_lang: HashMap<&'static str, LangAcc> = HashMap::new();
+        let mut by_dir: HashMap<String, DirAcc> = HashMap::new();
+        let mut total_files: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        walk_diffs(&repo, |commit, diff| {
+            if commit.author().email().unwrap_or("").to_lowercase()
+                != email_owned.to_lowercase()
+            {
+                return Ok(());
+            }
+            let oid = commit.id();
+            let count = diff.deltas().len();
+            for idx in 0..count {
+                let Some(delta) = diff.get_delta(idx) else {
+                    continue;
+                };
+                let path = delta
+                    .new_file()
+                    .path()
+                    .or_else(|| delta.old_file().path())
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default();
+                if path.is_empty() {
+                    continue;
+                }
+
+                let bytes = match git2::Patch::from_diff(diff, idx) {
+                    Ok(Some(patch)) => match patch.line_stats() {
+                        Ok((_, ins, del)) => (ins + del) as u64,
+                        Err(_) => 0,
+                    },
+                    _ => 0,
+                };
+
+                total_files.insert(path.clone());
+
+                let lang = classify_language(&path);
+                let lacc = by_lang.entry(lang).or_insert(LangAcc {
+                    files: std::collections::HashSet::new(),
+                    bytes_changed: 0,
+                });
+                lacc.files.insert(path.clone());
+                lacc.bytes_changed = lacc.bytes_changed.saturating_add(bytes);
+
+                let parts: Vec<&str> = path.split('/').collect();
+                let dir = if parts.len() <= 1 {
+                    ".".to_string()
+                } else {
+                    let take = (parts.len() - 1).min(2);
+                    parts[..take].join("/")
+                };
+                let dacc = by_dir.entry(dir).or_insert(DirAcc {
+                    commits: std::collections::HashSet::new(),
+                    bytes_changed: 0,
+                });
+                dacc.commits.insert(oid);
+                dacc.bytes_changed = dacc.bytes_changed.saturating_add(bytes);
+            }
+            Ok(())
+        })?;
+
+        let mut top_languages: Vec<LanguageShare> = by_lang
+            .into_iter()
+            .map(|(lang, acc)| LanguageShare {
+                language: lang.to_string(),
+                files: acc.files.len() as u32,
+                bytes_changed: acc.bytes_changed,
+            })
+            .collect();
+        top_languages.sort_by(|a, b| b.bytes_changed.cmp(&a.bytes_changed));
+        top_languages.truncate(8);
+
+        let mut top_directories: Vec<DirectoryShare> = by_dir
+            .into_iter()
+            .map(|(path, acc)| DirectoryShare {
+                path,
+                commits: acc.commits.len() as u32,
+                bytes_changed: acc.bytes_changed,
+            })
+            .collect();
+        top_directories.sort_by(|a, b| b.bytes_changed.cmp(&a.bytes_changed));
+        top_directories.truncate(8);
+
+        Ok(AuthorSpecialization {
+            email: email_owned,
+            top_languages,
+            top_directories,
+            total_files_touched: total_files.len() as u32,
+        })
+    })
+}
+
 pub fn get_coauthor_pairs_impl(
     db: &crate::db::Db,
     id: i64,
@@ -3183,6 +3357,301 @@ pub fn get_repo_health_impl(
         sub_scores,
     })
     })
+}
+
+// ---------- Quality scanner ----------
+
+const MAX_BLOB_SCAN_BYTES: usize = 512 * 1024; // 512 KB cap per file
+
+struct SecretPattern {
+    name: &'static str,
+    severity: &'static str,
+    pattern: &'static str,
+}
+
+const SECRET_PATTERNS: &[SecretPattern] = &[
+    SecretPattern {
+        name: "AWS Access Key",
+        severity: "high",
+        pattern: r"\bAKIA[0-9A-Z]{16}\b",
+    },
+    SecretPattern {
+        name: "GitHub PAT",
+        severity: "high",
+        pattern: r"\bghp_[A-Za-z0-9]{36}\b",
+    },
+    SecretPattern {
+        name: "GitHub OAuth",
+        severity: "high",
+        pattern: r"\bgh[ousr]_[A-Za-z0-9_]{36}\b",
+    },
+    SecretPattern {
+        name: "GitLab PAT",
+        severity: "high",
+        pattern: r"\bglpat-[A-Za-z0-9_-]{20}\b",
+    },
+    SecretPattern {
+        name: "Slack Token",
+        severity: "high",
+        pattern: r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b",
+    },
+    SecretPattern {
+        name: "Google API Key",
+        severity: "high",
+        pattern: r"\bAIza[0-9A-Za-z_\-]{35}\b",
+    },
+    SecretPattern {
+        name: "Stripe Live Key",
+        severity: "high",
+        pattern: r"\bsk_live_[A-Za-z0-9]{24,}\b",
+    },
+    SecretPattern {
+        name: "RSA Private Key",
+        severity: "high",
+        pattern: r"-----BEGIN RSA PRIVATE KEY-----",
+    },
+    SecretPattern {
+        name: "OpenSSH Private Key",
+        severity: "high",
+        pattern: r"-----BEGIN OPENSSH PRIVATE KEY-----",
+    },
+    SecretPattern {
+        name: "PGP Private Key",
+        severity: "high",
+        pattern: r"-----BEGIN PGP PRIVATE KEY BLOCK-----",
+    },
+    SecretPattern {
+        name: "Generic Secret Assignment",
+        severity: "medium",
+        pattern: r#"(?i)(?:secret|password|api[_-]?key|token)\s*[:=]\s*['"][A-Za-z0-9!@#$%^&*\-_+=/]{12,}['"]"#,
+    },
+];
+
+struct RiskyPathPattern {
+    name: &'static str,
+    severity: &'static str,
+    pattern: &'static str,
+}
+
+const RISKY_PATH_PATTERNS: &[RiskyPathPattern] = &[
+    RiskyPathPattern {
+        name: ".env file",
+        severity: "high",
+        pattern: r"(?i)(?:^|/)\.env(?:\.[a-z0-9-]+)?$",
+    },
+    RiskyPathPattern {
+        name: "PEM certificate / key",
+        severity: "high",
+        pattern: r"(?i)\.pem$",
+    },
+    RiskyPathPattern {
+        name: "SSH private key",
+        severity: "high",
+        pattern: r"(?:^|/)id_(?:rsa|ed25519|dsa|ecdsa)$",
+    },
+    RiskyPathPattern {
+        name: "Credentials file",
+        severity: "high",
+        pattern: r"(?i)(?:^|/)credentials(?:\.json|\.yml|\.yaml|\.toml)?$",
+    },
+    RiskyPathPattern {
+        name: "Secrets file",
+        severity: "medium",
+        pattern: r"(?i)(?:^|/)secrets?\.(?:yml|yaml|json|toml|env)$",
+    },
+    RiskyPathPattern {
+        name: "AWS credentials",
+        severity: "high",
+        pattern: r"(?:^|/)\.aws/credentials$",
+    },
+    RiskyPathPattern {
+        name: "PKCS#12 / PFX",
+        severity: "high",
+        pattern: r"(?i)\.(?:pfx|p12)$",
+    },
+    RiskyPathPattern {
+        name: "Java KeyStore",
+        severity: "medium",
+        pattern: r"(?i)\.(?:jks|keystore)$",
+    },
+    RiskyPathPattern {
+        name: "KeePass DB",
+        severity: "medium",
+        pattern: r"(?i)\.kdbx$",
+    },
+];
+
+const ENV_EXAMPLE_RE: &str = r"(?i)(?:^|/)\.env\.(?:example|sample|template|dist)$";
+const TODO_RE: &str = r"\b(TODO|FIXME|HACK|XXX)\b[\s:!]";
+
+pub fn run_quality_scan_impl(db: &crate::db::Db, id: i64) -> AppResult<QualityReport> {
+    use regex::Regex;
+
+    let repo_meta = get_repository_impl(db, id)?;
+    let head = current_head(&repo_meta.path);
+    cached(db, id, &head, "quality", move || {
+        let repo = open(&repo_meta.path)?;
+        let head_ref = match repo.head() {
+            Ok(h) => h,
+            Err(_) => {
+                return Ok(QualityReport {
+                    secrets: Vec::new(),
+                    risky_files: Vec::new(),
+                    todos: Vec::new(),
+                    todo_count: 0,
+                    files_scanned: 0,
+                });
+            }
+        };
+        let tree = head_ref.peel_to_tree()?;
+
+        let secret_res: Vec<(Regex, &SecretPattern)> = SECRET_PATTERNS
+            .iter()
+            .filter_map(|p| Regex::new(p.pattern).ok().map(|re| (re, p)))
+            .collect();
+        let risky_res: Vec<(Regex, &RiskyPathPattern)> = RISKY_PATH_PATTERNS
+            .iter()
+            .filter_map(|p| Regex::new(p.pattern).ok().map(|re| (re, p)))
+            .collect();
+        let env_example_re = Regex::new(ENV_EXAMPLE_RE).ok();
+        let todo_re = Regex::new(TODO_RE).ok();
+
+        let mut secrets: Vec<SecretHit> = Vec::new();
+        let mut risky_files: Vec<RiskyFile> = Vec::new();
+        let mut todos: Vec<TodoHit> = Vec::new();
+        let mut todo_count: u32 = 0;
+        let mut files_scanned: u32 = 0;
+
+        let mut paths_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        tree.walk(git2::TreeWalkMode::PreOrder, |root, entry| {
+            if entry.kind() != Some(git2::ObjectType::Blob) {
+                return git2::TreeWalkResult::Ok;
+            }
+            let Some(name) = entry.name() else {
+                return git2::TreeWalkResult::Ok;
+            };
+            let path = format!("{}{}", root, name);
+            if !paths_seen.insert(path.clone()) {
+                return git2::TreeWalkResult::Ok;
+            }
+
+            // Risky path check (skip .env.example variants)
+            let is_env_example = env_example_re
+                .as_ref()
+                .map(|r| r.is_match(&path))
+                .unwrap_or(false);
+            if !is_env_example {
+                for (re, p) in &risky_res {
+                    if re.is_match(&path) {
+                        risky_files.push(RiskyFile {
+                            path: path.clone(),
+                            reason: p.name.to_string(),
+                            severity: p.severity.to_string(),
+                        });
+                        break;
+                    }
+                }
+            }
+
+            // Content scan only for reasonably-sized text files
+            let blob_obj = match entry.to_object(&repo) {
+                Ok(o) => o,
+                Err(_) => return git2::TreeWalkResult::Ok,
+            };
+            let blob = match blob_obj.peel_to_blob() {
+                Ok(b) => b,
+                Err(_) => return git2::TreeWalkResult::Ok,
+            };
+            let content = blob.content();
+            if content.len() > MAX_BLOB_SCAN_BYTES {
+                return git2::TreeWalkResult::Ok;
+            }
+            let text = match std::str::from_utf8(content) {
+                Ok(s) => s,
+                Err(_) => return git2::TreeWalkResult::Ok,
+            };
+
+            files_scanned = files_scanned.saturating_add(1);
+
+            // Secret scan
+            for (re, p) in &secret_res {
+                for m in re.find_iter(text) {
+                    let line = text[..m.start()].chars().filter(|c| *c == '\n').count() as u32 + 1;
+                    let matched = m.as_str();
+                    let masked = mask_secret(matched);
+                    secrets.push(SecretHit {
+                        path: path.clone(),
+                        line,
+                        pattern_name: p.name.to_string(),
+                        severity: p.severity.to_string(),
+                        masked,
+                    });
+                    if secrets.len() >= 500 {
+                        return git2::TreeWalkResult::Abort;
+                    }
+                }
+            }
+
+            // TODO scan
+            if let Some(ref re) = todo_re {
+                for (i, line) in text.lines().enumerate() {
+                    if let Some(cap) = re.captures(line) {
+                        let kind = cap.get(1).map(|m| m.as_str()).unwrap_or("TODO").to_string();
+                        let trimmed = line.trim();
+                        let text_short = if trimmed.chars().count() > 200 {
+                            trimmed.chars().take(200).collect::<String>() + "…"
+                        } else {
+                            trimmed.to_string()
+                        };
+                        todo_count = todo_count.saturating_add(1);
+                        if todos.len() < 200 {
+                            todos.push(TodoHit {
+                                path: path.clone(),
+                                line: (i + 1) as u32,
+                                kind,
+                                text: text_short,
+                            });
+                        }
+                    }
+                }
+            }
+
+            git2::TreeWalkResult::Ok
+        })
+        .ok();
+
+        // Sort secrets by severity then path
+        secrets.sort_by(|a, b| {
+            let sa = if a.severity == "high" { 0 } else { 1 };
+            let sb = if b.severity == "high" { 0 } else { 1 };
+            sa.cmp(&sb).then(a.path.cmp(&b.path))
+        });
+        risky_files.sort_by(|a, b| {
+            let sa = if a.severity == "high" { 0 } else { 1 };
+            let sb = if b.severity == "high" { 0 } else { 1 };
+            sa.cmp(&sb).then(a.path.cmp(&b.path))
+        });
+        todos.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
+
+        Ok(QualityReport {
+            secrets,
+            risky_files,
+            todos,
+            todo_count,
+            files_scanned,
+        })
+    })
+}
+
+fn mask_secret(s: &str) -> String {
+    let total = s.chars().count();
+    if total <= 8 {
+        return "*".repeat(total);
+    }
+    let prefix: String = s.chars().take(4).collect();
+    let stars = "*".repeat(total.saturating_sub(8).min(20));
+    let suffix: String = s.chars().rev().take(4).collect::<String>().chars().rev().collect();
+    format!("{}{}{}", prefix, stars, suffix)
 }
 
 fn classify_language(filename: &str) -> &'static str {

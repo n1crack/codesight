@@ -19,6 +19,42 @@ import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { useAppState } from "@/state/AppState";
 import { formatDate } from "@/lib/format";
 
+function SpecializationList({
+  title,
+  items,
+}: {
+  title: string;
+  items: { label: string; value: number; sub: string }[];
+}) {
+  const max = Math.max(1, ...items.map((i) => i.value));
+  return (
+    <div>
+      <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {title}
+      </div>
+      <ul className="flex flex-col gap-1.5">
+        {items.map((it) => {
+          const ratio = it.value / max;
+          return (
+            <li key={it.label} className="flex flex-col gap-0.5">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="truncate font-mono">{it.label}</span>
+                <span className="shrink-0 text-muted-foreground">{it.sub}</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-[var(--color-chart-1)]"
+                  style={{ width: `${Math.max(2, ratio * 100)}%` }}
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export function ContributorDetailPage() {
   const { t, i18n } = useTranslation();
   const { selectedRepoId } = useAppState();
@@ -52,6 +88,12 @@ export function ContributorDetailPage() {
   const recent = useQuery({
     queryKey: ["contributorRecent", selectedRepoId, email],
     queryFn: () => api.getContributorRecentCommits(selectedRepoId!, email, 12),
+    enabled: selectedRepoId != null && !!email,
+  });
+
+  const specialization = useQuery({
+    queryKey: ["specialization", selectedRepoId, email],
+    queryFn: () => api.getAuthorSpecialization(selectedRepoId!, email),
     enabled: selectedRepoId != null && !!email,
   });
 
@@ -180,6 +222,49 @@ export function ContributorDetailPage() {
             ) : heatmap.data ? (
               <Heatmap data={heatmap.data} />
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("specialization.title")}</CardTitle>
+            <div className="text-xs text-muted-foreground">
+              {specialization.data
+                ? t("specialization.filesTouched", {
+                    count: specialization.data.totalFilesTouched,
+                  })
+                : t("specialization.subtitle")}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {specialization.isPending ? (
+              <Skeleton className="h-32 w-full" />
+            ) : !specialization.data ||
+              (specialization.data.topLanguages.length === 0 &&
+                specialization.data.topDirectories.length === 0) ? (
+              <p className="text-sm text-muted-foreground">
+                {t("common.noData")}
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <SpecializationList
+                  title={t("specialization.topLanguages")}
+                  items={specialization.data.topLanguages.map((l) => ({
+                    label: l.language,
+                    value: l.bytesChanged,
+                    sub: `${l.files} files`,
+                  }))}
+                />
+                <SpecializationList
+                  title={t("specialization.topDirectories")}
+                  items={specialization.data.topDirectories.map((d) => ({
+                    label: d.path,
+                    value: d.bytesChanged,
+                    sub: `${d.commits} commits`,
+                  }))}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 

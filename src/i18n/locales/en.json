@@ -28,7 +28,8 @@
       "ownership": "Ownership",
       "authors": "Authors",
       "messages": "Messages",
-      "collaborators": "Collaborators"
+      "collaborators": "Collaborators",
+      "quality": "Quality"
     },
     "graph": {
       "title": "Graph",
@@ -115,6 +116,8 @@
     "byDay": "By day",
     "commits": "Commits",
     "churn": "Churn",
+    "velocity": "Velocity",
+    "velocityHint": "4-bucket rolling average of commits",
     "additions": "Additions",
     "deletions": "Deletions",
     "metric": "Metric"
@@ -253,6 +256,30 @@
     "noData": "No co-authored commits found.",
     "jointCommits": "{{count}} joint commits",
     "lastCollab": "Last: {{date}}"
+  },
+  "specialization": {
+    "title": "Specialization",
+    "subtitle": "Languages and directories this author touches most",
+    "topLanguages": "Top languages",
+    "topDirectories": "Top directories",
+    "filesTouched": "{{count}} files touched",
+    "byteShare": "{{bytes}} bytes changed"
+  },
+  "quality": {
+    "title": "Quality & Security",
+    "subtitle": "HEAD-tree scan: secrets, risky files, TODOs",
+    "scanning": "Scanning HEAD tree…",
+    "filesScanned": "{{count}} files scanned",
+    "noFindings": "No findings — clean!",
+    "secrets": "Secret leaks",
+    "secretsHint": "Pattern matches in current HEAD (history scan not run)",
+    "riskyFiles": "Risky files",
+    "riskyHint": "Sensitive paths committed to repo",
+    "todos": "TODOs / FIXMEs",
+    "todoCount": "{{count}} markers",
+    "severityHigh": "high",
+    "severityMedium": "medium",
+    "line": "L{{line}}"
   },
   "commit": {
     "title": "Commit",

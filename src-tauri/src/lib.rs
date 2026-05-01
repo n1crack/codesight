@@ -12,18 +12,18 @@ use crate::analysis::{
     get_commit_graph_impl, get_commit_heatmap_impl, get_commit_message_stats_impl,
     get_commit_timeline_impl, get_contributor_detail_impl, get_contributor_heatmap_impl,
     get_contributor_recent_commits_impl, get_contributor_top_files_impl,
-    get_churn_risk_impl, get_coauthor_pairs_impl, get_contributor_cohort_impl,
-    get_directory_hotspots_impl, get_file_couplings_impl, get_file_hotspots_impl,
-    get_global_heatmap_impl,
+    get_author_specialization_impl, get_churn_risk_impl, get_coauthor_pairs_impl,
+    get_contributor_cohort_impl, get_directory_hotspots_impl, get_file_couplings_impl,
+    get_file_hotspots_impl, get_global_heatmap_impl,
     get_global_recent_commits_impl, get_global_summary_impl, get_language_breakdown_impl,
     get_ownership_report_impl, get_recent_commits_impl, get_repo_health_impl,
     get_repo_summary_impl, get_repos_sparklines_impl, get_top_contributors_impl,
-    list_branches_impl, list_known_authors_impl, list_tags_impl, search_commits_impl,
-    ActivityPatterns, BranchInfo, ChurnPoint, ChurnRiskFile, CoauthorPair, CommitDetail,
-    CommitInfo, CommitMessageStats, Contributor, ContributorCohortPoint, ContributorDetail,
-    DirectoryHotspot, FileCoupling, FileHotspot, GlobalRecentCommit, GlobalSummary, GraphCommit,
-    HeatmapData, LanguageStat, OwnershipReport, RepoHealth, RepoSparkline, RepoSummary,
-    SearchParams, TagInfo, TimelinePoint,
+    list_branches_impl, list_known_authors_impl, list_tags_impl, run_quality_scan_impl,
+    search_commits_impl, ActivityPatterns, AuthorSpecialization, BranchInfo, ChurnPoint,
+    ChurnRiskFile, CoauthorPair, CommitDetail, CommitInfo, CommitMessageStats, Contributor,
+    ContributorCohortPoint, ContributorDetail, DirectoryHotspot, FileCoupling, FileHotspot,
+    GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData, LanguageStat, OwnershipReport,
+    QualityReport, RepoHealth, RepoSparkline, RepoSummary, SearchParams, TagInfo, TimelinePoint,
 };
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
@@ -477,6 +477,31 @@ async fn get_coauthor_pairs(
 }
 
 #[tauri::command]
+async fn get_author_specialization(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    email: String,
+) -> AppResult<AuthorSpecialization> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        get_author_specialization_impl(&db, id, &email)
+    })
+    .await
+    .unwrap()
+}
+
+#[tauri::command]
+async fn run_quality_scan(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+) -> AppResult<QualityReport> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || run_quality_scan_impl(&db, id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
 async fn get_file_couplings(
     state: tauri::State<'_, AppState>,
     id: i64,
@@ -564,6 +589,8 @@ pub fn run() {
             unassign_tag,
             set_tag_repos,
             get_coauthor_pairs,
+            get_author_specialization,
+            run_quality_scan,
             scan_folder,
             get_repo_summary,
             get_commit_heatmap,

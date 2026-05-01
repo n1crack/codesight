@@ -470,6 +470,7 @@ dependencies = [
  "git2",
  "parking_lot",
  "rayon",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",

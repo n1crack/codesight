@@ -69,6 +69,9 @@ const CollaboratorsPage = lazy(() =>
     default: m.CollaboratorsPage,
   })),
 );
+const QualityPage = lazy(() =>
+  import("@/pages/QualityPage").then((m) => ({ default: m.QualityPage })),
+);
 const TagOverviewPage = lazy(() =>
   import("@/pages/TagOverviewPage").then((m) => ({
     default: m.TagOverviewPage,
@@ -130,6 +133,7 @@ const router = createBrowserRouter([
           { path: "authors", element: <ContributorsPage /> },
           { path: "messages", element: <MessagesPage /> },
           { path: "collaborators", element: <CollaboratorsPage /> },
+          { path: "quality", element: <QualityPage /> },
         ],
       },
       {

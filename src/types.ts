@@ -99,7 +99,7 @@ export interface FileHotspot {
   lastModified: string;
 }
 
-export type TimelineMetric = "commits" | "churn";
+export type TimelineMetric = "commits" | "churn" | "velocity";
 
 export interface ActivityPatterns {
   byHour: number[];
@@ -226,6 +226,54 @@ export interface CoauthorPair {
   bEmail: string;
   jointCommits: number;
   lastCollabAt: string;
+}
+
+export interface LanguageShare {
+  language: string;
+  files: number;
+  bytesChanged: number;
+}
+
+export interface DirectoryShare {
+  path: string;
+  commits: number;
+  bytesChanged: number;
+}
+
+export interface AuthorSpecialization {
+  email: string;
+  topLanguages: LanguageShare[];
+  topDirectories: DirectoryShare[];
+  totalFilesTouched: number;
+}
+
+export interface SecretHit {
+  path: string;
+  line: number;
+  patternName: string;
+  severity: "high" | "medium" | "low";
+  masked: string;
+}
+
+export interface RiskyFile {
+  path: string;
+  reason: string;
+  severity: "high" | "medium" | "low";
+}
+
+export interface TodoHit {
+  path: string;
+  line: number;
+  kind: string;
+  text: string;
+}
+
+export interface QualityReport {
+  secrets: SecretHit[];
+  riskyFiles: RiskyFile[];
+  todos: TodoHit[];
+  todoCount: number;
+  filesScanned: number;
 }
 
 export interface GraphRef {
