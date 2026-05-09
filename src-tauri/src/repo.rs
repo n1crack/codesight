@@ -336,6 +336,203 @@ fn spawn_terminal(terminal: &str, path: &str) -> std::io::Result<std::process::C
     }
 }
 
+// ---------- Git status / branch ops ----------
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoStatus {
+    pub repo_id: i64,
+    pub current_branch: Option<String>,
+    pub head_short: Option<String>,
+    pub upstream: Option<String>,
+    pub ahead: u32,
+    pub behind: u32,
+    pub dirty: bool,
+    pub modified: u32,
+    pub staged: u32,
+    pub untracked: u32,
+    pub conflicted: u32,
+}
+
+pub fn get_repo_status_impl(db: &Db, id: i64) -> AppResult<RepoStatus> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = GitRepository::open(&repo_meta.path)
+        .map_err(|e| AppError::Other(format!("open repo failed: {}", e)))?;
+
+    let head_ref = repo.head().ok();
+    let current_branch = head_ref
+        .as_ref()
+        .and_then(|h| h.shorthand().map(|s| s.to_string()));
+    let head_oid = head_ref.as_ref().and_then(|h| h.target());
+    let head_short = head_oid.map(|oid| {
+        let s = oid.to_string();
+        s.chars().take(7).collect::<String>()
+    });
+
+    let mut upstream: Option<String> = None;
+    let mut ahead: u32 = 0;
+    let mut behind: u32 = 0;
+    if let (Some(name), Some(oid)) = (current_branch.as_deref(), head_oid) {
+        if let Ok(branch) = repo.find_branch(name, git2::BranchType::Local) {
+            if let Ok(up) = branch.upstream() {
+                if let Ok(Some(up_name)) = up.name() {
+                    upstream = Some(up_name.to_string());
+                }
+                if let Some(up_oid) = up.get().target() {
+                    if let Ok((a, b)) = repo.graph_ahead_behind(oid, up_oid) {
+                        ahead = a as u32;
+                        behind = b as u32;
+                    }
+                }
+            }
+        }
+    }
+
+    // Status counts — stop at a sane cap so huge worktrees don't stall the bar.
+    let mut opts = git2::StatusOptions::new();
+    opts.include_untracked(true)
+        .recurse_untracked_dirs(false)
+        .renames_head_to_index(false)
+        .renames_index_to_workdir(false);
+    let mut modified: u32 = 0;
+    let mut staged: u32 = 0;
+    let mut untracked: u32 = 0;
+    let mut conflicted: u32 = 0;
+    if let Ok(statuses) = repo.statuses(Some(&mut opts)) {
+        for entry in statuses.iter() {
+            let s = entry.status();
+            if s.is_conflicted() {
+                conflicted += 1;
+                continue;
+            }
+            if s.is_wt_new() {
+                untracked += 1;
+            }
+            if s.is_wt_modified() || s.is_wt_deleted() || s.is_wt_typechange() {
+                modified += 1;
+            }
+            if s.is_index_new()
+                || s.is_index_modified()
+                || s.is_index_deleted()
+                || s.is_index_renamed()
+                || s.is_index_typechange()
+            {
+                staged += 1;
+            }
+        }
+    }
+    let dirty = modified + staged + untracked + conflicted > 0;
+
+    Ok(RepoStatus {
+        repo_id: id,
+        current_branch,
+        head_short,
+        upstream,
+        ahead,
+        behind,
+        dirty,
+        modified,
+        staged,
+        untracked,
+        conflicted,
+    })
+}
+
+pub fn checkout_branch_impl(db: &Db, id: i64, branch_name: &str) -> AppResult<()> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = GitRepository::open(&repo_meta.path)
+        .map_err(|e| AppError::Other(format!("open repo failed: {}", e)))?;
+
+    // Find local branch first; fall back to a remote branch (creates a tracking local).
+    let (target_ref_name, target_oid) =
+        match repo.find_branch(branch_name, git2::BranchType::Local) {
+            Ok(b) => {
+                let r = b.into_reference();
+                let name = r
+                    .name()
+                    .ok_or_else(|| AppError::Other("branch has no ref name".into()))?
+                    .to_string();
+                let oid = r
+                    .target()
+                    .ok_or_else(|| AppError::Other("branch ref missing target".into()))?;
+                (name, oid)
+            }
+            Err(_) => {
+                // Try remote, e.g. "origin/foo".
+                let remote = repo
+                    .find_branch(branch_name, git2::BranchType::Remote)
+                    .map_err(|e| {
+                        AppError::Other(format!("branch not found: {} ({})", branch_name, e))
+                    })?;
+                let target = remote
+                    .get()
+                    .target()
+                    .ok_or_else(|| AppError::Other("remote branch has no target".into()))?;
+                let local_name = branch_name
+                    .splitn(2, '/')
+                    .nth(1)
+                    .unwrap_or(branch_name);
+                let commit = repo.find_commit(target).map_err(|e| {
+                    AppError::Other(format!("could not load commit: {}", e))
+                })?;
+                let new_branch = repo
+                    .branch(local_name, &commit, false)
+                    .map_err(|e| AppError::Other(format!("create local branch failed: {}", e)))?;
+                let r = new_branch.into_reference();
+                let name = r
+                    .name()
+                    .ok_or_else(|| AppError::Other("branch has no ref name".into()))?
+                    .to_string();
+                (name, target)
+            }
+        };
+
+    let object = repo
+        .find_object(target_oid, None)
+        .map_err(|e| AppError::Other(format!("find object failed: {}", e)))?;
+
+    let mut builder = git2::build::CheckoutBuilder::new();
+    builder.safe(); // refuse to overwrite uncommitted local changes
+    repo.checkout_tree(&object, Some(&mut builder))
+        .map_err(|e| AppError::Other(format!("checkout failed: {}", e)))?;
+    repo.set_head(&target_ref_name)
+        .map_err(|e| AppError::Other(format!("set HEAD failed: {}", e)))?;
+    Ok(())
+}
+
+fn run_git(path: &str, args: &[&str]) -> AppResult<String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(path)
+        .args(args)
+        .output()
+        .map_err(|e| AppError::Other(format!("git launch failed: {}", e)))?;
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(AppError::Other(if err.is_empty() {
+            format!("git {} failed", args.join(" "))
+        } else {
+            err
+        }));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+pub fn git_fetch_impl(db: &Db, id: i64) -> AppResult<String> {
+    let repo_meta = get_repository_impl(db, id)?;
+    run_git(&repo_meta.path, &["fetch", "--all", "--prune"])
+}
+
+pub fn git_pull_impl(db: &Db, id: i64) -> AppResult<String> {
+    let repo_meta = get_repository_impl(db, id)?;
+    run_git(&repo_meta.path, &["pull", "--ff-only"])
+}
+
+pub fn git_push_impl(db: &Db, id: i64) -> AppResult<String> {
+    let repo_meta = get_repository_impl(db, id)?;
+    run_git(&repo_meta.path, &["push"])
+}
+
 // ---------- Git client open ----------
 
 const ALLOWED_GIT_CLIENTS: &[&str] = &[

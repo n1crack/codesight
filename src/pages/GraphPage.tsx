@@ -7,6 +7,7 @@ import { api } from "@/api";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Select } from "@/components/ui/Select";
+import { TruncatedText } from "@/components/ui/TruncatedText";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { useAppState } from "@/state/AppState";
 import { formatDate } from "@/lib/format";
@@ -152,11 +153,11 @@ export function GraphPage() {
                     })}
                   </svg>
                 </div>
-                <ul className="flex-1">
+                <ul className="min-w-0 flex-1">
                   {graph.data.map((c) => (
                     <li
                       key={c.id}
-                      className="flex items-center gap-2 border-b px-3 hover:bg-accent/40"
+                      className="flex min-w-0 items-center gap-2 overflow-hidden border-b px-3 hover:bg-accent/40"
                       style={{ height: ROW_HEIGHT }}
                     >
                       <Link
@@ -166,27 +167,36 @@ export function GraphPage() {
                         {c.shortId}
                       </Link>
                       {c.refs.map((r) => (
-                        <span
+                        <TruncatedText
                           key={`${r.kind}-${r.name}`}
+                          text={r.kind === "HEAD" ? "HEAD" : r.name}
                           className={cn(
-                            "shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium",
+                            "inline-block max-w-[140px] shrink rounded border px-1.5 py-0.5 text-[10px] font-medium",
                             REF_STYLE[r.kind],
                           )}
-                        >
-                          {r.kind === "HEAD" ? "HEAD" : r.name}
-                        </span>
+                        />
                       ))}
-                      <span className="min-w-0 flex-1 truncate text-sm">
-                        {c.summary || <span className="text-muted-foreground">—</span>}
-                      </span>
+                      {c.summary ? (
+                        <TruncatedText
+                          text={c.summary}
+                          className="min-w-0 flex-1 text-sm"
+                        />
+                      ) : (
+                        <span className="min-w-0 flex-1 text-sm text-muted-foreground">
+                          —
+                        </span>
+                      )}
                       <Link
                         to={`/contributors/${encodeURIComponent(c.authorEmail)}`}
-                        className="hidden shrink-0 truncate text-xs text-muted-foreground hover:underline sm:block"
-                        title={c.authorEmail}
+                        className="hidden max-w-[140px] shrink-0 text-xs text-muted-foreground hover:underline sm:block"
                       >
-                        {c.authorName}
+                        <TruncatedText
+                          text={c.authorName}
+                          tooltip={`${c.authorName} <${c.authorEmail}>`}
+                          className="inline-block max-w-[140px]"
+                        />
                       </Link>
-                      <span className="hidden shrink-0 text-xs text-muted-foreground md:block">
+                      <span className="hidden shrink-0 whitespace-nowrap text-xs text-muted-foreground md:block">
                         {formatDate(c.timestamp, i18n.language)}
                       </span>
                     </li>

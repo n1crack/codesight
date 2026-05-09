@@ -157,6 +157,12 @@ const router = createBrowserRouter([
           { path: "messages", element: <MessagesPage /> },
           { path: "collaborators", element: <CollaboratorsPage /> },
           { path: "quality", element: <QualityPage /> },
+        ],
+      },
+      {
+        path: "repo",
+        children: [
+          { index: true, element: <Navigate to="config" replace /> },
           { path: "config", element: <RepoConfigPage /> },
         ],
       },
@@ -182,6 +188,7 @@ const router = createBrowserRouter([
       { path: "branches", element: <Navigate to="/graph/branches" replace /> },
       { path: "tags", element: <Navigate to="/graph/releases" replace /> },
       { path: "contributors", element: <Navigate to="/insights/authors" replace /> },
+      { path: "insights/config", element: <Navigate to="/repo/config" replace /> },
       { path: "ownership", element: <Navigate to="/insights/ownership" replace /> },
       { path: "hotspots", element: <Navigate to="/insights/hotspots" replace /> },
     ],

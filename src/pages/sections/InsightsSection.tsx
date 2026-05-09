@@ -16,7 +16,6 @@ export function InsightsSection() {
         { to: "collaborators", label: t("section.insights.collaborators") },
         { to: "messages", label: t("section.insights.messages") },
         { to: "quality", label: t("section.insights.quality") },
-        { to: "config", label: t("section.insights.config") },
       ]}
     />
   );

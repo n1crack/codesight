@@ -4,6 +4,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { AppTopBar } from "./AppTopBar";
 import { CommandPalette } from "./CommandPalette";
+import { StatusBar } from "./StatusBar";
 import { Skeleton } from "./ui/Skeleton";
 
 function PageFallback() {
@@ -33,6 +34,7 @@ export function AppShell() {
             </Suspense>
           </div>
         </div>
+        <StatusBar />
       </main>
       <CommandPalette />
     </div>

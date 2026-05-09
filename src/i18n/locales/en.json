@@ -8,6 +8,7 @@
     "activity": "Activity",
     "insights": "Insights",
     "graph": "Graph",
+    "repoConfig": "Configuration",
     "search": "Search",
     "compare": "Compare",
     "settings": "Settings"
@@ -29,8 +30,7 @@
       "authors": "Authors",
       "messages": "Messages",
       "collaborators": "Collaborators",
-      "quality": "Quality",
-      "config": "Config"
+      "quality": "Quality"
     },
     "graph": {
       "title": "Graph",
@@ -545,8 +545,40 @@
   "openInIde": "Open in editor",
   "openInTerminal": "Open in terminal",
   "openInGitClient": "Open in git client",
+  "statusBar": {
+    "switchBranch": "Switch branch",
+    "filterBranches": "Filter branches…",
+    "fetch": "Fetch",
+    "pull": "Pull (fast-forward only)",
+    "push": "Push",
+    "dirty": "dirty",
+    "dirtyStaged": "{{count}} staged",
+    "dirtyModified": "{{count}} modified",
+    "dirtyUntracked": "{{count}} untracked",
+    "dirtyConflicted": "{{count}} conflicts",
+    "aheadHint": "{{count}} commits ahead of upstream",
+    "behindHint": "{{count}} commits behind upstream",
+    "netError": {
+      "title": {
+        "fetch": "Fetch failed",
+        "pull": "Pull failed",
+        "push": "Push failed"
+      },
+      "descOpenClient": "Network operation failed: {{message}}\n\nOpen the repo in your default git client and finish it there?",
+      "descNoClient": "Network operation failed: {{message}}\n\nNo default git client is set — open Settings to pick one.",
+      "openClient": "Open in git client"
+    }
+  },
+  "launcherIssue": {
+    "editorTitle": "Default editor not set",
+    "gitClientTitle": "Default git client not set",
+    "editorNotConfigured": "You haven't picked a default editor yet. Open Settings to choose one (VS Code, Cursor, JetBrains, etc.).",
+    "gitClientNotConfigured": "You haven't picked a default git client yet. Open Settings to choose one (Tower, Sourcetree, GitKraken, etc.).",
+    "failed": "The launch failed: {{message}}. The app may not be installed — check Settings to pick a different one.",
+    "openSettings": "Open Settings"
+  },
   "repoConfig": {
-    "title": "Repo config",
+    "title": "Configuration",
     "subtitle": "Local git configuration. Identity and remotes are editable; everything else is shown read-only.",
     "headBranch": "HEAD branch",
     "userName": "user.name",

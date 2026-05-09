@@ -8,6 +8,7 @@
     "activity": "Aktivite",
     "insights": "İçgörüler",
     "graph": "Grafik",
+    "repoConfig": "Yapılandırma",
     "search": "Arama",
     "compare": "Karşılaştır",
     "settings": "Ayarlar"
@@ -29,8 +30,7 @@
       "authors": "Yazarlar",
       "messages": "Mesajlar",
       "collaborators": "İşbirlikçiler",
-      "quality": "Kalite & Güvenlik",
-      "config": "Yapılandırma"
+      "quality": "Kalite & Güvenlik"
     },
     "graph": {
       "title": "Grafik",
@@ -545,8 +545,40 @@
   "openInIde": "Editörde aç",
   "openInTerminal": "Terminalde aç",
   "openInGitClient": "Git istemcisinde aç",
+  "statusBar": {
+    "switchBranch": "Dal değiştir",
+    "filterBranches": "Dal filtrele…",
+    "fetch": "Fetch",
+    "pull": "Pull (yalnız fast-forward)",
+    "push": "Push",
+    "dirty": "değişiklik",
+    "dirtyStaged": "{{count}} staged",
+    "dirtyModified": "{{count}} değişiklik",
+    "dirtyUntracked": "{{count}} izlenmeyen",
+    "dirtyConflicted": "{{count}} çakışma",
+    "aheadHint": "Upstream'in {{count}} commit önünde",
+    "behindHint": "Upstream'in {{count}} commit gerisinde",
+    "netError": {
+      "title": {
+        "fetch": "Fetch başarısız",
+        "pull": "Pull başarısız",
+        "push": "Push başarısız"
+      },
+      "descOpenClient": "Ağ işlemi başarısız: {{message}}\n\nDepoyu varsayılan git istemcinde açıp oradan tamamla?",
+      "descNoClient": "Ağ işlemi başarısız: {{message}}\n\nVarsayılan git istemcisi seçilmemiş — Ayarlardan birini seç.",
+      "openClient": "Git istemcisinde aç"
+    }
+  },
+  "launcherIssue": {
+    "editorTitle": "Varsayılan editör seçilmemiş",
+    "gitClientTitle": "Varsayılan git istemcisi seçilmemiş",
+    "editorNotConfigured": "Henüz varsayılan bir editör seçmediniz. Ayarlardan birini belirleyin (VS Code, Cursor, JetBrains vb.).",
+    "gitClientNotConfigured": "Henüz varsayılan bir git istemcisi seçmediniz. Ayarlardan birini belirleyin (Tower, Sourcetree, GitKraken vb.).",
+    "failed": "Açma işlemi başarısız: {{message}}. Uygulama yüklü olmayabilir — Ayarlardan başka birini seçin.",
+    "openSettings": "Ayarları aç"
+  },
   "repoConfig": {
-    "title": "Repo yapılandırması",
+    "title": "Yapılandırma",
     "subtitle": "Yerel git yapılandırması. Kullanıcı bilgisi ve uzak adresler düzenlenebilir; geri kalanı salt okunur.",
     "headBranch": "HEAD dalı",
     "userName": "user.name",

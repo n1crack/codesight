@@ -8,7 +8,6 @@ import {
   ChevronRight,
   FolderGit2,
   FolderSearch,
-  GitBranch,
   GitCompare,
   GitGraph,
   Home,
@@ -16,6 +15,7 @@ import {
   Plus,
   Search,
   Settings,
+  SlidersHorizontal,
   Trash2,
 } from "lucide-react";
 import {
@@ -40,6 +40,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { api, pickRepositoryDir, pickScanRoot } from "@/api";
+import appIcon from "@/assets/icon.png";
 import { ManageTagsButton, TagManager } from "@/components/TagManager";
 import { Sparkline } from "@/components/Sparkline";
 import { Button } from "@/components/ui/Button";
@@ -68,6 +69,7 @@ const REPO_NAV = [
   { to: "/activity", icon: Activity, key: "nav.activity" },
   { to: "/insights", icon: Brain, key: "nav.insights" },
   { to: "/graph", icon: GitGraph, key: "nav.graph" },
+  { to: "/repo/config", icon: SlidersHorizontal, key: "nav.repoConfig" },
 ] as const;
 
 const FILTER_THRESHOLD = 6;
@@ -662,9 +664,13 @@ export function Sidebar() {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-2 px-4 py-3">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <GitBranch size={16} />
-        </div>
+        <img
+          src={appIcon}
+          alt={t("app.name")}
+          width={28}
+          height={28}
+          className="h-7 w-7 shrink-0 rounded-md object-contain"
+        />
         <div className="flex flex-col">
           <span className="text-sm font-semibold">{t("app.name")}</span>
           <span className="text-[11px] text-muted-foreground">
@@ -699,25 +705,42 @@ export function Sidebar() {
           ))}
         </nav>
         {selectedRepoId != null && (
-          <nav className="flex flex-col gap-0.5 border-t px-2 py-2">
-            {REPO_NAV.map(({ to, icon: Icon, key }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground",
-                  )
-                }
-              >
-                <Icon size={14} />
-                {t(key)}
-              </NavLink>
-            ))}
-          </nav>
+          <div className="border-t">
+            {(() => {
+              const selected = repos.data?.find(
+                (r) => r.id === selectedRepoId,
+              );
+              if (!selected) return null;
+              return (
+                <div
+                  title={selected.path}
+                  className="flex items-center gap-2 px-3 pt-2 text-[11px] uppercase tracking-wide text-muted-foreground"
+                >
+                  <FolderGit2 size={11} className="shrink-0" />
+                  <span className="truncate font-mono">{selected.name}</span>
+                </div>
+              );
+            })()}
+            <nav className="flex flex-col gap-0.5 px-2 py-2">
+              {REPO_NAV.map(({ to, icon: Icon, key }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                      isActive
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground",
+                    )
+                  }
+                >
+                  <Icon size={14} />
+                  {t(key)}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
         )}
       </div>
 

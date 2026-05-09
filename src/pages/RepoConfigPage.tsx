@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import {
   Check,
   Eye,
@@ -18,16 +19,16 @@ import {
 import { api } from "@/api";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Dialog } from "@/components/ui/Dialog";
+import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { useAppState } from "@/state/AppState";
-import { openInGitClient } from "@/lib/openInGitClient";
-import { openInIde } from "@/lib/openInIde";
 import { openInTerminal } from "@/lib/openInTerminal";
 import { cn } from "@/lib/utils";
+
+type LauncherKind = "ide" | "gitClient";
 import type { GitConfigView, GitHook, GitRemote, HookTemplate } from "@/types";
 
 function ConfigRow({
@@ -267,6 +268,44 @@ export function RepoConfigPage() {
   const { t } = useTranslation();
   const { selectedRepoId, ide, terminal, gitClient } = useAppState();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [launcherIssue, setLauncherIssue] = useState<{
+    kind: LauncherKind;
+    reason: "notConfigured" | "failed";
+    message?: string;
+  } | null>(null);
+
+  const launchEditor = async (path: string) => {
+    if (!ide || ide === "system") {
+      setLauncherIssue({ kind: "ide", reason: "notConfigured" });
+      return;
+    }
+    try {
+      await api.openInIde(ide, path);
+    } catch (err) {
+      setLauncherIssue({
+        kind: "ide",
+        reason: "failed",
+        message: String(err),
+      });
+    }
+  };
+
+  const launchGitClient = async (path: string) => {
+    if (!gitClient || gitClient === "system") {
+      setLauncherIssue({ kind: "gitClient", reason: "notConfigured" });
+      return;
+    }
+    try {
+      await api.openInGitClient(gitClient, path);
+    } catch (err) {
+      setLauncherIssue({
+        kind: "gitClient",
+        reason: "failed",
+        message: String(err),
+      });
+    }
+  };
 
   const config = useQuery({
     queryKey: ["gitConfig", selectedRepoId],
@@ -404,7 +443,7 @@ export function RepoConfigPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => openInGitClient(gitClient, data.repoPath)}
+                onClick={() => void launchGitClient(data.repoPath)}
               >
                 <GitFork size={12} />
                 {t("openInGitClient")}
@@ -420,7 +459,7 @@ export function RepoConfigPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => openInIde(ide, data.repoPath)}
+                onClick={() => void launchEditor(data.repoPath)}
               >
                 <ExternalLink size={12} />
                 {t("repoConfig.openRepo")}
@@ -817,6 +856,28 @@ export function RepoConfigPage() {
           </pre>
         )}
       </Dialog>
+
+      <ConfirmDialog
+        open={launcherIssue != null}
+        onClose={() => setLauncherIssue(null)}
+        onConfirm={() => {
+          setLauncherIssue(null);
+          navigate("/settings");
+        }}
+        title={
+          launcherIssue?.kind === "ide"
+            ? t("launcherIssue.editorTitle")
+            : t("launcherIssue.gitClientTitle")
+        }
+        description={
+          launcherIssue?.reason === "failed"
+            ? t("launcherIssue.failed", { message: launcherIssue.message ?? "" })
+            : launcherIssue?.kind === "ide"
+              ? t("launcherIssue.editorNotConfigured")
+              : t("launcherIssue.gitClientNotConfigured")
+        }
+        confirmLabel={t("launcherIssue.openSettings")}
+      />
     </>
   );
 }

@@ -38,13 +38,14 @@ use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
 use crate::repo::{
     add_discovered_repos_impl, add_remote_impl, add_repository_impl, assign_tag_impl,
-    create_tag_impl, delete_tag_impl, discover_repos_impl, get_git_config_impl,
+    checkout_branch_impl, create_tag_impl, delete_tag_impl, discover_repos_impl,
+    get_git_config_impl, get_repo_status_impl, git_fetch_impl, git_pull_impl, git_push_impl,
     install_hook_impl, list_hook_templates_impl, list_repositories_impl,
     list_tags_with_stats_impl, open_in_git_client_impl, open_in_ide_impl,
     open_in_terminal_impl, read_hook_impl, remove_remote_impl, remove_repository_impl,
     reorder_repositories_impl, scan_folder_impl, set_git_user_impl, set_remote_url_impl,
     set_tag_repos_impl, unassign_tag_impl, uninstall_hook_impl, update_tag_impl,
-    DiscoveredRepo, GitConfigView, HookTemplate, Repository, Tag, TagWithStats,
+    DiscoveredRepo, GitConfigView, HookTemplate, RepoStatus, Repository, Tag, TagWithStats,
 };
 
 pub struct AppState {
@@ -190,6 +191,53 @@ async fn open_in_terminal(terminal: String, path: String) -> AppResult<()> {
 #[tauri::command]
 async fn open_in_git_client(client: String, path: String) -> AppResult<()> {
     tauri::async_runtime::spawn_blocking(move || open_in_git_client_impl(&client, &path))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn get_repo_status(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+) -> AppResult<RepoStatus> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || get_repo_status_impl(&db, id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn checkout_branch(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    branch: String,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || checkout_branch_impl(&db, id, &branch))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn git_fetch(state: tauri::State<'_, AppState>, id: i64) -> AppResult<String> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || git_fetch_impl(&db, id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn git_pull(state: tauri::State<'_, AppState>, id: i64) -> AppResult<String> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || git_pull_impl(&db, id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn git_push(state: tauri::State<'_, AppState>, id: i64) -> AppResult<String> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || git_push_impl(&db, id))
         .await
         .unwrap()
 }
@@ -786,6 +834,11 @@ pub fn run() {
             open_in_ide,
             open_in_terminal,
             open_in_git_client,
+            get_repo_status,
+            checkout_branch,
+            git_fetch,
+            git_pull,
+            git_push,
             get_git_config,
             set_git_user,
             add_remote,

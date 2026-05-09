@@ -93,6 +93,20 @@ export interface ImportGraph {
   externalImports: number;
 }
 
+export interface RepoStatus {
+  repoId: number;
+  currentBranch: string | null;
+  headShort: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  dirty: boolean;
+  modified: number;
+  staged: number;
+  untracked: number;
+  conflicted: number;
+}
+
 export interface RepoSummary {
   repo: Repository;
   total_commits: number;

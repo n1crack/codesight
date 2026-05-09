@@ -29,6 +29,7 @@ import type {
   HistorySecretReport,
   HookTemplate,
   ImportGraph,
+  RepoStatus,
   LanguageStat,
   OwnershipReport,
   QualityReport,
@@ -54,6 +55,13 @@ export const api = {
     invoke<void>("open_in_terminal", { terminal, path }),
   openInGitClient: (client: string, path: string) =>
     invoke<void>("open_in_git_client", { client, path }),
+  getRepoStatus: (id: number) =>
+    invoke<RepoStatus>("get_repo_status", { id }),
+  checkoutBranch: (id: number, branch: string) =>
+    invoke<void>("checkout_branch", { id, branch }),
+  gitFetch: (id: number) => invoke<string>("git_fetch", { id }),
+  gitPull: (id: number) => invoke<string>("git_pull", { id }),
+  gitPush: (id: number) => invoke<string>("git_push", { id }),
   getGitConfig: (id: number) =>
     invoke<GitConfigView>("get_git_config", { id }),
   setGitUser: (id: number, name: string | null, email: string | null) =>
