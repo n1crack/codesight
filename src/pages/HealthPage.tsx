@@ -7,8 +7,10 @@ import { api } from "@/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
+import { ExportMarkdownButton } from "@/components/ExportMarkdownButton";
 import { useAppState } from "@/state/AppState";
 import { cn } from "@/lib/utils";
+import { mdTable } from "@/lib/exportMarkdown";
 import { scoreQuality, type QualitySubScores } from "@/lib/qualityScore";
 import type { HealthDetail, HealthSubScore } from "@/types";
 
@@ -250,9 +252,70 @@ export function HealthPage() {
     );
   }
 
+  const buildMarkdown = () => {
+    if (!combined) return "";
+    const ratio = combined.score / Math.max(1, combined.max);
+    const out: string[] = [];
+    out.push(`# ${t("health.title")}`);
+    out.push("");
+    out.push(
+      `**${t("health.subtitle")}** — ${combined.score} / ${combined.max} (${ratioLabel(ratio, t)})`,
+    );
+
+    if (health.data) {
+      out.push("");
+      out.push(`## ${t("health.subTitle") ?? "Activity sub-scores"}`);
+      out.push("");
+      out.push(
+        mdTable(
+          [
+            t("health.colMetric") ?? "Metric",
+            t("health.colScore") ?? "Score",
+            t("health.colMax") ?? "Max",
+            t("health.colDetail") ?? "Detail",
+          ],
+          health.data.subScores.map((s: HealthSubScore) => [
+            t(SUB_KEY_TO_I18N[s.key] ?? s.key),
+            s.score,
+            s.max,
+            formatHint(s.detail, t),
+          ]),
+        ),
+      );
+    }
+
+    if (qScores) {
+      out.push("");
+      out.push(`## ${t("quality.title") ?? "Quality"}`);
+      out.push("");
+      out.push(
+        mdTable(
+          [
+            t("health.colMetric") ?? "Metric",
+            t("health.colScore") ?? "Score",
+          ],
+          (Object.keys(qScores) as Array<keyof QualitySubScores>)
+            .filter((k) => k !== "total")
+            .map((k) => [t(QUALITY_KEY_TO_I18N[k]), qScores[k]]),
+        ),
+      );
+    }
+    out.push("");
+    return out.join("\n");
+  };
+
   return (
     <>
-      <PageHeader title={t("health.title")} subtitle={t("health.subtitle")} />
+      <PageHeader
+        title={t("health.title")}
+        subtitle={t("health.subtitle")}
+        actions={
+          <ExportMarkdownButton
+            build={buildMarkdown}
+            disabled={!combined}
+          />
+        }
+      />
       <div className="flex flex-col gap-4 p-6">
         <Card>
           <CardContent className="flex flex-wrap items-center gap-8 p-6">

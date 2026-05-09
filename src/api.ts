@@ -28,6 +28,7 @@ import type {
   HeatmapData,
   HistorySecretReport,
   HookTemplate,
+  ImportGraph,
   LanguageStat,
   OwnershipReport,
   QualityReport,
@@ -51,6 +52,8 @@ export const api = {
     invoke<void>("open_in_ide", { ide, path }),
   openInTerminal: (terminal: string, path: string) =>
     invoke<void>("open_in_terminal", { terminal, path }),
+  openInGitClient: (client: string, path: string) =>
+    invoke<void>("open_in_git_client", { client, path }),
   getGitConfig: (id: number) =>
     invoke<GitConfigView>("get_git_config", { id }),
   setGitUser: (id: number, name: string | null, email: string | null) =>
@@ -188,6 +191,8 @@ export const api = {
       limit,
       since: since ?? null,
     }),
+  getImportGraph: (id: number) =>
+    invoke<ImportGraph>("get_import_graph", { id }),
   getDirectoryHotspots: (
     id: number,
     maxDepth: number,

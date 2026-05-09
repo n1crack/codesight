@@ -1,16 +1,14 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Download } from "lucide-react";
 
 import { api } from "@/api";
-import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Heatmap } from "@/components/Heatmap";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { Select } from "@/components/ui/Select";
-import { exportSvgAsPng } from "@/lib/exportPng";
+import { ExportPngButton } from "@/components/ExportPngButton";
 import { useAppState } from "@/state/AppState";
 
 export function HeatmapPage() {
@@ -19,11 +17,6 @@ export function HeatmapPage() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const cardRef = useRef<HTMLDivElement>(null);
-
-  const onExport = () => {
-    const svg = cardRef.current?.querySelector("svg");
-    if (svg) exportSvgAsPng(svg as SVGSVGElement, `heatmap-${year}.png`);
-  };
 
   const summary = useQuery({
     queryKey: ["summary", selectedRepoId],
@@ -72,15 +65,11 @@ export function HeatmapPage() {
               onChange={setYear}
               options={years.map((y) => ({ value: y, label: String(y) }))}
             />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onExport}
-              title={t("common.exportPng")}
+            <ExportPngButton
+              containerRef={cardRef}
+              filename={`heatmap-${year}.png`}
               disabled={!heatmap.data}
-            >
-              <Download size={14} />
-            </Button>
+            />
           </div>
         }
       />

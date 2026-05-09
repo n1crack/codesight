@@ -22,7 +22,8 @@ use crate::analysis::{
     get_author_specialization_impl, get_churn_risk_impl, get_coauthor_pairs_impl,
     get_contributor_cohort_impl, get_directory_hotspots_impl, get_file_couplings_impl,
     get_file_hotspots_impl, get_global_heatmap_impl,
-    get_global_recent_commits_impl, get_global_summary_impl, get_language_breakdown_impl,
+    get_global_recent_commits_impl, get_global_summary_impl, get_import_graph_impl,
+    get_language_breakdown_impl,
     get_ownership_report_impl, get_recent_commits_impl, get_repo_health_impl,
     get_repo_summary_impl, get_repos_sparklines_impl, get_top_contributors_impl,
     list_branches_impl, list_known_authors_impl, list_tags_impl, run_history_secret_scan_impl,
@@ -30,8 +31,8 @@ use crate::analysis::{
     BranchInfo, ChurnPoint, ChurnRiskFile, CoauthorPair, CommitDetail, CommitInfo,
     CommitMessageStats, Contributor, ContributorCohortPoint, ContributorDetail, DirectoryHotspot,
     FileCoupling, FileHotspot, GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData,
-    HistorySecretReport, LanguageStat, OwnershipReport, QualityReport, RepoHealth, RepoSparkline,
-    RepoSummary, SearchParams, TagInfo, TimelinePoint,
+    HistorySecretReport, ImportGraph, LanguageStat, OwnershipReport, QualityReport, RepoHealth,
+    RepoSparkline, RepoSummary, SearchParams, TagInfo, TimelinePoint,
 };
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
@@ -39,11 +40,11 @@ use crate::repo::{
     add_discovered_repos_impl, add_remote_impl, add_repository_impl, assign_tag_impl,
     create_tag_impl, delete_tag_impl, discover_repos_impl, get_git_config_impl,
     install_hook_impl, list_hook_templates_impl, list_repositories_impl,
-    list_tags_with_stats_impl, open_in_ide_impl, open_in_terminal_impl, read_hook_impl,
-    remove_remote_impl, remove_repository_impl, reorder_repositories_impl, scan_folder_impl,
-    set_git_user_impl, set_remote_url_impl, set_tag_repos_impl, unassign_tag_impl,
-    uninstall_hook_impl, update_tag_impl, DiscoveredRepo, GitConfigView, HookTemplate,
-    Repository, Tag, TagWithStats,
+    list_tags_with_stats_impl, open_in_git_client_impl, open_in_ide_impl,
+    open_in_terminal_impl, read_hook_impl, remove_remote_impl, remove_repository_impl,
+    reorder_repositories_impl, scan_folder_impl, set_git_user_impl, set_remote_url_impl,
+    set_tag_repos_impl, unassign_tag_impl, uninstall_hook_impl, update_tag_impl,
+    DiscoveredRepo, GitConfigView, HookTemplate, Repository, Tag, TagWithStats,
 };
 
 pub struct AppState {
@@ -182,6 +183,13 @@ async fn open_in_ide(ide: String, path: String) -> AppResult<()> {
 #[tauri::command]
 async fn open_in_terminal(terminal: String, path: String) -> AppResult<()> {
     tauri::async_runtime::spawn_blocking(move || open_in_terminal_impl(&terminal, &path))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn open_in_git_client(client: String, path: String) -> AppResult<()> {
+    tauri::async_runtime::spawn_blocking(move || open_in_git_client_impl(&client, &path))
         .await
         .unwrap()
 }
@@ -698,6 +706,17 @@ async fn get_file_couplings(
 }
 
 #[tauri::command]
+async fn get_import_graph(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+) -> AppResult<ImportGraph> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || get_import_graph_impl(&db, id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
 async fn get_directory_hotspots(
     state: tauri::State<'_, AppState>,
     id: i64,
@@ -766,6 +785,7 @@ pub fn run() {
             reorder_repositories,
             open_in_ide,
             open_in_terminal,
+            open_in_git_client,
             get_git_config,
             set_git_user,
             add_remote,
@@ -816,6 +836,7 @@ pub fn run() {
             get_global_recent_commits,
             list_known_authors,
             get_file_couplings,
+            get_import_graph,
             get_directory_hotspots,
             get_repo_health,
             get_churn_risk,

@@ -97,6 +97,24 @@ const GraphSection = lazy(() =>
 const GraphPage = lazy(() =>
   import("@/pages/GraphPage").then((m) => ({ default: m.GraphPage })),
 );
+
+const CouplingsGraphPage = lazy(() =>
+  import("@/pages/CouplingsGraphPage").then((m) => ({
+    default: m.CouplingsGraphPage,
+  })),
+);
+
+const OwnershipMapPage = lazy(() =>
+  import("@/pages/OwnershipMapPage").then((m) => ({
+    default: m.OwnershipMapPage,
+  })),
+);
+
+const ImportGraphPage = lazy(() =>
+  import("@/pages/ImportGraphPage").then((m) => ({
+    default: m.ImportGraphPage,
+  })),
+);
 const BranchesPage = lazy(() =>
   import("@/pages/BranchesPage").then((m) => ({ default: m.BranchesPage })),
 );
@@ -150,6 +168,9 @@ const router = createBrowserRouter([
           { path: "dag", element: <GraphPage /> },
           { path: "branches", element: <BranchesPage /> },
           { path: "releases", element: <TagsPage /> },
+          { path: "couplings", element: <CouplingsGraphPage /> },
+          { path: "ownership-map", element: <OwnershipMapPage /> },
+          { path: "imports", element: <ImportGraphPage /> },
         ],
       },
 

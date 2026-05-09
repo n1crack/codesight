@@ -59,6 +59,9 @@ const SUB_PAGES: Array<{
   { to: "/graph/dag", parentKey: "nav.graph", childKey: "section.graph.dag", icon: GitGraph },
   { to: "/graph/branches", parentKey: "nav.graph", childKey: "section.graph.branches", icon: GitGraph },
   { to: "/graph/releases", parentKey: "nav.graph", childKey: "section.graph.releases", icon: GitGraph },
+  { to: "/graph/couplings", parentKey: "nav.graph", childKey: "section.graph.couplings", icon: GitGraph },
+  { to: "/graph/ownership-map", parentKey: "nav.graph", childKey: "section.graph.ownershipMap", icon: GitGraph },
+  { to: "/graph/imports", parentKey: "nav.graph", childKey: "section.graph.imports", icon: GitGraph },
 ];
 
 export function CommandPalette() {

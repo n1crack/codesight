@@ -43,6 +43,20 @@ export const TERMINAL_OPTIONS = [
 export type TerminalChoice = (typeof TERMINAL_OPTIONS)[number]["value"];
 const VALID_TERMINALS: readonly string[] = TERMINAL_OPTIONS.map((o) => o.value);
 
+export const GIT_CLIENT_OPTIONS = [
+  { value: "system", label: "System default" },
+  { value: "tower", label: "Tower" },
+  { value: "sourcetree", label: "Sourcetree" },
+  { value: "gitkraken", label: "GitKraken" },
+  { value: "fork", label: "Fork" },
+  { value: "gitup", label: "GitUp (macOS)" },
+  { value: "smartgit", label: "SmartGit" },
+  { value: "sublime-merge", label: "Sublime Merge" },
+  { value: "github-desktop", label: "GitHub Desktop" },
+] as const;
+export type GitClientChoice = (typeof GIT_CLIENT_OPTIONS)[number]["value"];
+const VALID_GIT_CLIENTS: readonly string[] = GIT_CLIENT_OPTIONS.map((o) => o.value);
+
 export type DateRangePreset =
   | "all"
   | "7d"
@@ -79,6 +93,8 @@ type AppContextValue = {
   setIde: (i: IdeChoice) => void;
   terminal: TerminalChoice;
   setTerminal: (t: TerminalChoice) => void;
+  gitClient: GitClientChoice;
+  setGitClient: (g: GitClientChoice) => void;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -89,6 +105,7 @@ const EMAIL_KEY = "codesight.myEmail";
 const DATE_RANGE_KEY = "codesight.dateRange";
 const IDE_KEY = "codesight.ide";
 const TERMINAL_KEY = "codesight.terminal";
+const GIT_CLIENT_KEY = "codesight.gitClient";
 
 function readIde(): IdeChoice {
   const v = localStorage.getItem(IDE_KEY) ?? "";
@@ -98,6 +115,11 @@ function readIde(): IdeChoice {
 function readTerminal(): TerminalChoice {
   const v = localStorage.getItem(TERMINAL_KEY) ?? "";
   return (VALID_TERMINALS.includes(v) ? v : "system") as TerminalChoice;
+}
+
+function readGitClient(): GitClientChoice {
+  const v = localStorage.getItem(GIT_CLIENT_KEY) ?? "";
+  return (VALID_GIT_CLIENTS.includes(v) ? v : "system") as GitClientChoice;
 }
 
 const VALID_RANGES: DateRangePreset[] = ["all", "7d", "30d", "90d", "6m", "1y"];
@@ -144,6 +166,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   );
   const [ide, setIdeState] = useState<IdeChoice>(() => readIde());
   const [terminal, setTerminalState] = useState<TerminalChoice>(() => readTerminal());
+  const [gitClient, setGitClientState] = useState<GitClientChoice>(() => readGitClient());
 
   useEffect(() => {
     applyTheme(theme);
@@ -185,6 +208,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(TERMINAL_KEY, t);
   };
 
+  const setGitClient = (g: GitClientChoice) => {
+    setGitClientState(g);
+    localStorage.setItem(GIT_CLIENT_KEY, g);
+  };
+
   const value = useMemo<AppContextValue>(
     () => ({
       selectedRepoId,
@@ -199,8 +227,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setIde,
       terminal,
       setTerminal,
+      gitClient,
+      setGitClient,
     }),
-    [selectedRepoId, theme, myEmail, dateRange, ide, terminal],
+    [selectedRepoId, theme, myEmail, dateRange, ide, terminal, gitClient],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

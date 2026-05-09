@@ -74,6 +74,25 @@ export interface HookTemplate {
   body: string;
 }
 
+export interface ImportNode {
+  path: string;
+  language: string;
+  inDegree: number;
+  outDegree: number;
+}
+
+export interface ImportEdge {
+  from: string;
+  to: string;
+}
+
+export interface ImportGraph {
+  nodes: ImportNode[];
+  edges: ImportEdge[];
+  filesScanned: number;
+  externalImports: number;
+}
+
 export interface RepoSummary {
   repo: Repository;
   total_commits: number;

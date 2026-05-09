@@ -14,7 +14,9 @@ import {
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { DateRangeBadge } from "@/components/DateRangeBadge";
+import { ExportMarkdownButton } from "@/components/ExportMarkdownButton";
 import { resolveDateRangeSince, useAppState } from "@/state/AppState";
+import { mdTable } from "@/lib/exportMarkdown";
 import { cn } from "@/lib/utils";
 import type { OwnershipAlert } from "@/types";
 
@@ -130,12 +132,102 @@ export function OwnershipPage() {
     );
   }
 
+  const buildMarkdown = () => {
+    const data = ownership.data;
+    if (!data) return "";
+    const out: string[] = [];
+    out.push(`# ${t("ownership.title")}`);
+    if (summary.data?.repo.name) {
+      out.push(`_${summary.data.repo.name}_`);
+    }
+    out.push("");
+    out.push(`- **${t("ownership.busFactor")}:** ${data.busFactor}`);
+    out.push(`- **${t("ownership.totalAuthors")}:** ${data.totalAuthors}`);
+    if (data.alerts.length > 0) {
+      out.push("");
+      out.push(`## ${t("ownership.alerts.title")}`);
+      data.alerts.forEach((alert) => {
+        let line = "";
+        switch (alert.kind) {
+          case "busFactorOne":
+            line = t("ownership.alerts.busFactorOne", { name: alert.authorName });
+            break;
+          case "highConcentration":
+            line = t("ownership.alerts.highConcentration", {
+              count: alert.count,
+              pct: alert.thresholdPct,
+            });
+            break;
+          case "alumni":
+            line = t("ownership.alerts.alumni", {
+              count: alert.count,
+              days: alert.days,
+            });
+            break;
+        }
+        out.push(`- ${line}`);
+      });
+    }
+    if (data.topAuthors.length > 0) {
+      out.push("");
+      out.push(`## ${t("ownership.topAuthors")}`);
+      out.push("");
+      out.push(
+        mdTable(
+          [
+            t("contributors.colName"),
+            t("contributors.colEmail"),
+            t("contributors.colShare"),
+            t("contributors.colCommits"),
+          ],
+          data.topAuthors.map((a) => [
+            a.name,
+            a.email,
+            `${a.sharePct.toFixed(1)}%`,
+            a.commits,
+          ]),
+        ),
+      );
+    }
+    if (data.files.length > 0) {
+      out.push("");
+      out.push(`## ${t("ownership.fileOwnership")}`);
+      out.push("");
+      out.push(
+        mdTable(
+          [
+            t("hotspotsPage.colPath"),
+            t("ownership.primaryAuthor"),
+            t("contributors.colShare"),
+            t("hotspotsPage.colCommits"),
+          ],
+          data.files.map((f) => [
+            f.path,
+            f.primaryName,
+            `${f.primarySharePct.toFixed(0)}%`,
+            f.totalCommits,
+          ]),
+        ),
+      );
+    }
+    out.push("");
+    return out.join("\n");
+  };
+
   return (
     <>
       <PageHeader
         title={t("ownership.title")}
         subtitle={summary.data?.repo.name ?? t("ownership.subtitle")}
-        actions={<DateRangeBadge />}
+        actions={
+          <div className="flex items-center gap-2">
+            <DateRangeBadge />
+            <ExportMarkdownButton
+              build={buildMarkdown}
+              disabled={!ownership.data}
+            />
+          </div>
+        }
       />
       <div className="flex flex-col gap-4 p-6">
         {ownership.data?.alerts && ownership.data.alerts.length > 0 && (

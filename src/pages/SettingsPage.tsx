@@ -5,16 +5,27 @@ import { Select } from "@/components/ui/Select";
 import { PageHeader } from "@/components/PageHeader";
 import { SUPPORTED_LANGS } from "@/i18n";
 import {
+  GIT_CLIENT_OPTIONS,
   IDE_OPTIONS,
   TERMINAL_OPTIONS,
   useAppState,
+  type GitClientChoice,
   type IdeChoice,
   type TerminalChoice,
 } from "@/state/AppState";
 
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
-  const { theme, setTheme, ide, setIde, terminal, setTerminal } = useAppState();
+  const {
+    theme,
+    setTheme,
+    ide,
+    setIde,
+    terminal,
+    setTerminal,
+    gitClient,
+    setGitClient,
+  } = useAppState();
 
   return (
     <>
@@ -85,6 +96,24 @@ export function SettingsPage() {
               />
               <p className="mt-2 text-xs text-muted-foreground">
                 {t("settings.terminalHint")}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("settings.gitClient")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select<GitClientChoice>
+                value={gitClient}
+                onChange={setGitClient}
+                options={GIT_CLIENT_OPTIONS.map((o) => ({
+                  value: o.value,
+                  label: o.label,
+                }))}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("settings.gitClientHint")}
               </p>
             </CardContent>
           </Card>

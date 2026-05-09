@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
+import { ExportPngButton } from "@/components/ExportPngButton";
 import { useAppState } from "@/state/AppState";
 import type { TimelineGranularity, TimelineMetric } from "@/types";
 
@@ -25,6 +26,7 @@ export function TimelinePage() {
   const { selectedRepoId } = useAppState();
   const [granularity, setGranularity] = useState<TimelineGranularity>("week");
   const [metric, setMetric] = useState<TimelineMetric>("commits");
+  const chartRef = useRef<HTMLDivElement>(null);
 
   const summary = useQuery({
     queryKey: ["summary", selectedRepoId],
@@ -112,6 +114,11 @@ export function TimelinePage() {
                 { value: "month", label: t("timeline.byMonth") },
               ]}
             />
+            <ExportPngButton
+              containerRef={chartRef}
+              filename={`timeline-${metric}-${granularity}.png`}
+              disabled={isLoading}
+            />
           </div>
         }
       />
@@ -142,7 +149,7 @@ export function TimelinePage() {
             )}
           </CardHeader>
           <CardContent>
-            <div className="h-72 w-full">
+            <div className="h-72 w-full" ref={chartRef}>
               {isLoading ? (
                 <Skeleton className="h-full w-full" />
               ) : (

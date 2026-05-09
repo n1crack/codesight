@@ -1,15 +1,13 @@
 import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Download } from "lucide-react";
 
 import { api } from "@/api";
-import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ChartTooltip } from "@/components/ChartTooltip";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
-import { exportSvgAsPng } from "@/lib/exportPng";
+import { ExportPngButton } from "@/components/ExportPngButton";
 import { useAppState } from "@/state/AppState";
 import { useChartTooltip } from "@/lib/useChartTooltip";
 import { cn } from "@/lib/utils";
@@ -54,11 +52,6 @@ export function PatternsPage() {
     enabled: selectedRepoId != null,
   });
 
-  const onExportMatrix = () => {
-    const svg = matrixCardRef.current?.querySelector("svg");
-    if (svg) exportSvgAsPng(svg as SVGSVGElement, "activity-patterns.png");
-  };
-
   if (selectedRepoId == null) {
     return (
       <>
@@ -86,15 +79,11 @@ export function PatternsPage() {
             : t("activity.subtitle")
         }
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onExportMatrix}
-            title={t("common.exportPng")}
+          <ExportPngButton
+            containerRef={matrixCardRef}
+            filename="activity-patterns.png"
             disabled={!patterns.data}
-          >
-            <Download size={14} />
-          </Button>
+          />
         }
       />
       <div className="flex flex-col gap-4 p-6">

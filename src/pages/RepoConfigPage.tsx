@@ -6,6 +6,7 @@ import {
   Eye,
   ExternalLink,
   GitBranch,
+  GitFork,
   Pencil,
   Plus,
   Sparkles,
@@ -23,6 +24,7 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { useAppState } from "@/state/AppState";
+import { openInGitClient } from "@/lib/openInGitClient";
 import { openInIde } from "@/lib/openInIde";
 import { openInTerminal } from "@/lib/openInTerminal";
 import { cn } from "@/lib/utils";
@@ -263,7 +265,7 @@ function RemoteEditor({
 
 export function RepoConfigPage() {
   const { t } = useTranslation();
-  const { selectedRepoId, ide, terminal } = useAppState();
+  const { selectedRepoId, ide, terminal, gitClient } = useAppState();
   const queryClient = useQueryClient();
 
   const config = useQuery({
@@ -399,6 +401,14 @@ export function RepoConfigPage() {
         actions={
           data && (
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openInGitClient(gitClient, data.repoPath)}
+              >
+                <GitFork size={12} />
+                {t("openInGitClient")}
+              </Button>
               <Button
                 size="sm"
                 variant="outline"

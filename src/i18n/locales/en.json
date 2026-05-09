@@ -37,7 +37,10 @@
       "subtitle": "Git graph intelligence",
       "dag": "DAG",
       "branches": "Branches",
-      "releases": "Releases"
+      "releases": "Releases",
+      "couplings": "Couplings",
+      "ownershipMap": "Ownership map",
+      "imports": "Imports"
     }
   },
   "sidebar": {
@@ -101,7 +104,8 @@
     "delete": "Delete",
     "selectRepo": "Select a repository to begin",
     "noData": "No data",
-    "exportPng": "Export PNG"
+    "exportPng": "Export PNG",
+    "copyMarkdown": "Copy as Markdown"
   },
   "overview": {
     "title": "Overview",
@@ -210,7 +214,13 @@
     "cohortHint": "Active / new / returning authors per month",
     "cohortActive": "Active",
     "cohortNew": "New",
-    "cohortReturning": "Returning"
+    "cohortReturning": "Returning",
+    "colName": "Name",
+    "colEmail": "Email",
+    "colCommits": "Commits",
+    "colShare": "Share",
+    "colFirst": "First",
+    "colLast": "Last"
   },
   "search": {
     "title": "Commit search",
@@ -434,7 +444,11 @@
     "riskMedium": "medium",
     "riskHigh": "high",
     "lastTouched": "{{days}}d ago",
-    "primarySharePct": "{{pct}}% by {{name}}"
+    "primarySharePct": "{{pct}}% by {{name}}",
+    "colPath": "Path",
+    "colCommits": "Commits",
+    "colChanges": "Changes",
+    "colLast": "Last touched"
   },
   "branchesFilter": {
     "all": "All branches",
@@ -466,6 +480,11 @@
     "subBranches": "Branch hygiene",
     "subDocs": "Docs & tests",
     "subConventional": "Conventional commits",
+    "subTitle": "Activity sub-scores",
+    "colMetric": "Metric",
+    "colScore": "Score",
+    "colMax": "Max",
+    "colDetail": "Detail",
     "breakdownTitle": "Breakdown",
     "hint": {
       "recencyNone": "No commits found",
@@ -519,10 +538,13 @@
     "ide": "Default editor",
     "ideHint": "Used by the \"Open in editor\" buttons throughout the app. The binary must be on your $PATH (e.g. `code`, `cursor`).",
     "terminal": "Default terminal",
-    "terminalHint": "Used by the \"Open in terminal\" button on each repo. macOS choices are launched via `open -a`; on Linux/Windows the binary must be on your $PATH."
+    "terminalHint": "Used by the \"Open in terminal\" button on each repo. macOS choices are launched via `open -a`; on Linux/Windows the binary must be on your $PATH.",
+    "gitClient": "Default git client",
+    "gitClientHint": "Used by the \"Open in git client\" button on each repo. macOS apps are launched via `open -a`; Linux/Windows uses the CLI launcher (must be on your $PATH)."
   },
   "openInIde": "Open in editor",
   "openInTerminal": "Open in terminal",
+  "openInGitClient": "Open in git client",
   "repoConfig": {
     "title": "Repo config",
     "subtitle": "Local git configuration. Identity and remotes are editable; everything else is shown read-only.",
@@ -564,5 +586,36 @@
     "noReposFound": "No git repositories found in the selected folder.",
     "scanFailed": "Folder scan failed: {{message}}",
     "addFailed": "Could not add repository: {{message}}"
+  },
+  "importGraph": {
+    "title": "Import graph",
+    "subtitle": "Static import / use / require dependencies between source files (TS / JS / Rust / Python).",
+    "cardTitle": "Import dependency graph",
+    "hint": "Each circle is a source file colored by language; arrows point from importer to imported file. Big nodes are heavily depended on or pull in many modules — natural seams or refactor candidates.",
+    "empty": "No internal imports detected — codesight resolves only repo-relative imports (./foo, @/foo, crate::foo, .foo).",
+    "summary": "{{files}} files scanned · {{edges}} internal edges · {{external}} external imports skipped",
+    "imports": "imports {{count}}",
+    "importedBy": "imported by {{count}}",
+    "compareToCouplings": "compare with co-change network"
+  },
+  "ownershipMap": {
+    "title": "Ownership map",
+    "subtitle": "Treemap of files sized by total commits, colored by primary author.",
+    "cardTitle": "File ownership treemap",
+    "hint": "Each rectangle is a file; size shows how often it changes, color shows the author with the most commits on it. Big tiles dominated by one color are concentration risks.",
+    "empty": "No file ownership data — make some commits or widen the date range.",
+    "summary": "{{files}} files across {{authors}} authors",
+    "openListView": "open as a list"
+  },
+  "couplingsGraph": {
+    "title": "Co-change network",
+    "subtitle": "Files that change together, laid out by force-directed simulation.",
+    "cardTitle": "File coupling graph",
+    "hint": "Each circle is a file; each line is a pair that has changed together at least twice. Heavier lines mean more joint changes; bigger circles mean the file is coupled to more neighbors.",
+    "empty": "No couplings yet — try widening the date range or making more commits.",
+    "summary": "{{pairs}} pairs across {{files}} files",
+    "openListView": "open as a list",
+    "degree": "{{count}} neighbors",
+    "totalWeight": "{{count}} joint changes total"
   }
 }

@@ -13,7 +13,9 @@ import { useAppState } from "@/state/AppState";
 import { Link } from "react-router-dom";
 
 import { DateRangeBadge } from "@/components/DateRangeBadge";
+import { ExportMarkdownButton } from "@/components/ExportMarkdownButton";
 import { OpenInIdeButton } from "@/components/OpenInIdeButton";
+import { mdTable } from "@/lib/exportMarkdown";
 import { cn } from "@/lib/utils";
 import { resolveDateRangeSince } from "@/state/AppState";
 import type { ChurnRiskLevel } from "@/types";
@@ -75,8 +77,37 @@ function FilesTab({ repoId }: { repoId: number }) {
   });
   const max = Math.max(1, ...(q.data ?? []).map((h) => h.commits));
 
+  const buildMarkdown = () => {
+    const rows = (q.data ?? []).map((h) => [
+      h.path,
+      h.commits,
+      `+${h.additions} / -${h.deletions}`,
+      h.lastModified.slice(0, 10),
+    ]);
+    return [
+      `# ${t("hotspotsPage.tabFiles")}`,
+      "",
+      mdTable(
+        [
+          t("hotspotsPage.colPath"),
+          t("hotspotsPage.colCommits"),
+          t("hotspotsPage.colChanges"),
+          t("hotspotsPage.colLast"),
+        ],
+        rows,
+      ),
+      "",
+    ].join("\n");
+  };
+
   return (
     <Card>
+      <CardHeader className="flex flex-row items-center justify-end space-y-0 p-3">
+        <ExportMarkdownButton
+          build={buildMarkdown}
+          disabled={!q.data?.length}
+        />
+      </CardHeader>
       <CardContent className="p-0">
         {q.isPending ? (
           <div className="flex flex-col gap-1 p-4">

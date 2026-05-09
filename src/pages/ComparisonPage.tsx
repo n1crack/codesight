@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,6 +15,7 @@ import {
 import { api } from "@/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { PageHeader } from "@/components/PageHeader";
+import { ExportPngButton } from "@/components/ExportPngButton";
 import type { TimelinePoint } from "@/types";
 
 const COLORS = [
@@ -32,6 +33,7 @@ export function ComparisonPage() {
     queryFn: api.listRepositories,
   });
   const [selected, setSelected] = useState<number[]>([]);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   const summaries = useQueries({
     queries: selected.map((id) => ({
@@ -158,11 +160,16 @@ export function ComparisonPage() {
             </div>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
                 <CardTitle>{t("comparison.metrics.commits")}</CardTitle>
+                <ExportPngButton
+                  containerRef={chartRef}
+                  filename="comparison-commits.png"
+                  disabled={merged.length === 0}
+                />
               </CardHeader>
               <CardContent>
-                <div className="h-72 w-full">
+                <div className="h-72 w-full" ref={chartRef}>
                   <ResponsiveContainer>
                     <BarChart
                       data={merged}

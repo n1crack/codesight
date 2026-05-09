@@ -336,6 +336,70 @@ fn spawn_terminal(terminal: &str, path: &str) -> std::io::Result<std::process::C
     }
 }
 
+// ---------- Git client open ----------
+
+const ALLOWED_GIT_CLIENTS: &[&str] = &[
+    "system",
+    "tower",
+    "sourcetree",
+    "gitkraken",
+    "fork",
+    "gitup",
+    "smartgit",
+    "sublime-merge",
+    "github-desktop",
+];
+
+pub fn open_in_git_client_impl(client: &str, path: &str) -> AppResult<()> {
+    if !ALLOWED_GIT_CLIENTS.contains(&client) {
+        return Err(AppError::Other(format!("unsupported git client: {}", client)));
+    }
+    spawn_git_client(client, path)
+        .map_err(|e| AppError::Other(format!("could not launch git client '{}': {}", client, e)))?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn spawn_git_client(client: &str, path: &str) -> std::io::Result<std::process::Child> {
+    let app = match client {
+        "system" | "tower" => "Tower",
+        "sourcetree" => "Sourcetree",
+        "gitkraken" => "GitKraken",
+        "fork" => "Fork",
+        "gitup" => "GitUp",
+        "smartgit" => "SmartGit",
+        "sublime-merge" => "Sublime Merge",
+        "github-desktop" => "GitHub Desktop",
+        _ => return Err(std::io::Error::other("unsupported")),
+    };
+    Command::new("open").args(["-a", app, path]).spawn()
+}
+
+#[cfg(target_os = "windows")]
+fn spawn_git_client(client: &str, path: &str) -> std::io::Result<std::process::Child> {
+    match client {
+        "sourcetree" => Command::new("SourceTree.exe").arg(path).spawn(),
+        "gitkraken" => Command::new("gitkraken").args(["--path", path]).spawn(),
+        "fork" => Command::new("Fork.exe").arg(path).spawn(),
+        "smartgit" => Command::new("smartgit.exe").arg(path).spawn(),
+        "sublime-merge" => Command::new("smerge").arg(path).spawn(),
+        "github-desktop" => Command::new("github").arg(path).spawn(),
+        // No "system" winner on Windows — fall back to the folder so the user can pick.
+        _ => Command::new("explorer").arg(path).spawn(),
+    }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn spawn_git_client(client: &str, path: &str) -> std::io::Result<std::process::Child> {
+    match client {
+        "gitkraken" => Command::new("gitkraken").args(["--path", path]).spawn(),
+        "smartgit" => Command::new("smartgit").arg(path).spawn(),
+        "sublime-merge" => Command::new("smerge").arg(path).spawn(),
+        "github-desktop" => Command::new("github-desktop").arg(path).spawn(),
+        _ => Command::new("xdg-open").arg(path).spawn(),
+    }
+}
+
 // ---------- Git config (view-only) ----------
 
 #[derive(Debug, Serialize)]

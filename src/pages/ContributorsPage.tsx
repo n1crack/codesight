@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -17,12 +18,16 @@ import { api } from "@/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
+import { ExportMarkdownButton } from "@/components/ExportMarkdownButton";
+import { ExportPngButton } from "@/components/ExportPngButton";
 import { useAppState } from "@/state/AppState";
 import { formatDate } from "@/lib/format";
+import { mdTable } from "@/lib/exportMarkdown";
 
 export function ContributorsPage() {
   const { t, i18n } = useTranslation();
   const { selectedRepoId } = useAppState();
+  const cohortRef = useRef<HTMLDivElement>(null);
 
   const contributors = useQuery({
     queryKey: ["contributorsAll", selectedRepoId],
@@ -54,22 +59,66 @@ export function ContributorsPage() {
   const total = summary.data?.total_commits ?? 0;
   const max = Math.max(1, ...(contributors.data ?? []).map((c) => c.commits));
 
+  const buildMarkdown = () => {
+    const rows = (contributors.data ?? []).map((c) => {
+      const sharePct =
+        total > 0 ? Math.round((c.commits / total) * 100) : 0;
+      return [
+        c.name,
+        c.email,
+        c.commits,
+        `${sharePct}%`,
+        formatDate(c.firstCommitAt, i18n.language),
+        formatDate(c.lastCommitAt, i18n.language),
+      ];
+    });
+    return [
+      `# ${t("contributors.title")}`,
+      "",
+      mdTable(
+        [
+          t("contributors.colName"),
+          t("contributors.colEmail"),
+          t("contributors.colCommits"),
+          t("contributors.colShare"),
+          t("contributors.colFirst"),
+          t("contributors.colLast"),
+        ],
+        rows,
+      ),
+      "",
+    ].join("\n");
+  };
+
   return (
     <>
       <PageHeader
         title={t("contributors.title")}
         subtitle={t("contributors.subtitle")}
+        actions={
+          <ExportMarkdownButton
+            build={buildMarkdown}
+            disabled={!contributors.data?.length}
+          />
+        }
       />
       <div className="flex flex-col gap-4 p-6">
         <Card>
-          <CardHeader>
-            <CardTitle>{t("contributors.cohortTitle")}</CardTitle>
-            <div className="text-xs text-muted-foreground">
-              {t("contributors.cohortHint")}
+          <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+            <div>
+              <CardTitle>{t("contributors.cohortTitle")}</CardTitle>
+              <div className="text-xs text-muted-foreground">
+                {t("contributors.cohortHint")}
+              </div>
             </div>
+            <ExportPngButton
+              containerRef={cohortRef}
+              filename="contributor-cohort.png"
+              disabled={!cohort.data?.length}
+            />
           </CardHeader>
           <CardContent>
-            <div className="h-56 w-full">
+            <div className="h-56 w-full" ref={cohortRef}>
               {cohort.isPending ? (
                 <Skeleton className="h-full w-full" />
               ) : !cohort.data?.length ? (

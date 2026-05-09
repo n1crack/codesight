@@ -12,6 +12,9 @@ export function GraphSection() {
         { to: "dag", label: t("section.graph.dag") },
         { to: "branches", label: t("section.graph.branches") },
         { to: "releases", label: t("section.graph.releases") },
+        { to: "couplings", label: t("section.graph.couplings") },
+        { to: "ownership-map", label: t("section.graph.ownershipMap") },
+        { to: "imports", label: t("section.graph.imports") },
       ]}
     />
   );

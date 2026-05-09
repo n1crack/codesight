@@ -37,7 +37,10 @@
       "subtitle": "Git grafiği zekâsı",
       "dag": "DAG",
       "branches": "Dallar",
-      "releases": "Sürümler"
+      "releases": "Sürümler",
+      "couplings": "Birlikte Değişimler",
+      "ownershipMap": "Sahiplik haritası",
+      "imports": "Import grafiği"
     }
   },
   "sidebar": {
@@ -101,7 +104,8 @@
     "delete": "Sil",
     "selectRepo": "Başlamak için bir depo seçin",
     "noData": "Veri yok",
-    "exportPng": "PNG indir"
+    "exportPng": "PNG indir",
+    "copyMarkdown": "Markdown olarak kopyala"
   },
   "overview": {
     "title": "Genel Bakış",
@@ -210,7 +214,13 @@
     "cohortHint": "Ay bazında aktif / yeni / geri dönen yazarlar",
     "cohortActive": "Aktif",
     "cohortNew": "Yeni",
-    "cohortReturning": "Geri dönen"
+    "cohortReturning": "Geri dönen",
+    "colName": "Ad",
+    "colEmail": "E-posta",
+    "colCommits": "Commit",
+    "colShare": "Pay",
+    "colFirst": "İlk",
+    "colLast": "Son"
   },
   "search": {
     "title": "Commit arama",
@@ -434,7 +444,11 @@
     "riskMedium": "orta",
     "riskHigh": "yüksek",
     "lastTouched": "{{days}}g önce",
-    "primarySharePct": "%{{pct}} {{name}} tarafından"
+    "primarySharePct": "%{{pct}} {{name}} tarafından",
+    "colPath": "Dosya",
+    "colCommits": "Commit",
+    "colChanges": "Değişim",
+    "colLast": "Son dokunma"
   },
   "branchesFilter": {
     "all": "Tüm dallar",
@@ -466,6 +480,11 @@
     "subBranches": "Dal hijyeni",
     "subDocs": "Dokümantasyon & testler",
     "subConventional": "Standart commit mesajları",
+    "subTitle": "Aktivite alt-skorları",
+    "colMetric": "Metrik",
+    "colScore": "Skor",
+    "colMax": "Maks",
+    "colDetail": "Detay",
     "breakdownTitle": "Detaylar",
     "hint": {
       "recencyNone": "Hiç commit bulunamadı",
@@ -519,10 +538,13 @@
     "ide": "Varsayılan editör",
     "ideHint": "Uygulama içindeki \"Editörde aç\" butonları bunu kullanır. Binary $PATH'te olmalı (örn. `code`, `cursor`).",
     "terminal": "Varsayılan terminal",
-    "terminalHint": "Her repo için \"Terminalde aç\" butonu bunu kullanır. macOS seçenekleri `open -a` ile başlatılır; Linux/Windows'ta binary $PATH'te olmalı."
+    "terminalHint": "Her repo için \"Terminalde aç\" butonu bunu kullanır. macOS seçenekleri `open -a` ile başlatılır; Linux/Windows'ta binary $PATH'te olmalı.",
+    "gitClient": "Varsayılan git istemcisi",
+    "gitClientHint": "Her repo için \"Git istemcisinde aç\" butonu bunu kullanır. macOS uygulamaları `open -a` ile başlatılır; Linux/Windows'ta CLI binary $PATH'te olmalı."
   },
   "openInIde": "Editörde aç",
   "openInTerminal": "Terminalde aç",
+  "openInGitClient": "Git istemcisinde aç",
   "repoConfig": {
     "title": "Repo yapılandırması",
     "subtitle": "Yerel git yapılandırması. Kullanıcı bilgisi ve uzak adresler düzenlenebilir; geri kalanı salt okunur.",
@@ -564,5 +586,36 @@
     "noReposFound": "Seçilen klasörde git deposu bulunamadı.",
     "scanFailed": "Klasör taraması başarısız: {{message}}",
     "addFailed": "Depo eklenemedi: {{message}}"
+  },
+  "importGraph": {
+    "title": "Import grafiği",
+    "subtitle": "Kaynak dosyalar arasındaki statik import / use / require bağımlılıkları (TS / JS / Rust / Python).",
+    "cardTitle": "Import bağımlılık grafiği",
+    "hint": "Her daire dile göre renklendirilmiş bir kaynak dosya; oklar import edenden edilene gider. Büyük düğümler ya çok kullanılan ya da çok modül çeken dosyalardır — refactor adayları.",
+    "empty": "Repo-içi import bulunamadı — sadece repo-göreli yollar çözülür (./foo, @/foo, crate::foo, .foo).",
+    "summary": "{{files}} dosya tarandı · {{edges}} iç kenar · {{external}} dış import atlandı",
+    "imports": "{{count}} dosyayı çağırır",
+    "importedBy": "{{count}} dosya tarafından çağrılır",
+    "compareToCouplings": "birlikte değişim ağıyla karşılaştır"
+  },
+  "ownershipMap": {
+    "title": "Sahiplik haritası",
+    "subtitle": "Toplam commit'e göre boyutlandırılmış, birincil yazara göre renklendirilmiş dosya treemap'i.",
+    "cardTitle": "Dosya sahipliği treemap",
+    "hint": "Her dikdörtgen bir dosya; boyut ne kadar sık değiştiğini, renk en çok commit atan yazarı gösterir. Tek renge boğulmuş büyük kutular yoğunlaşma riskidir.",
+    "empty": "Sahiplik verisi yok — commit at veya tarih aralığını genişlet.",
+    "summary": "{{authors}} yazarda {{files}} dosya",
+    "openListView": "liste olarak aç"
+  },
+  "couplingsGraph": {
+    "title": "Birlikte değişim ağı",
+    "subtitle": "Kuvvet-yönlendirmeli simülasyonla yerleştirilmiş birlikte değişen dosyalar.",
+    "cardTitle": "Dosya birlikteliği grafiği",
+    "hint": "Her daire bir dosya; her çizgi en az iki kez birlikte değişmiş bir çift. Kalın çizgi daha fazla ortak değişim, büyük daire daha çok komşu demektir.",
+    "empty": "Henüz birliktelik yok — tarih aralığını genişletmeyi veya daha çok commit atmayı dene.",
+    "summary": "{{files}} dosya arasında {{pairs}} çift",
+    "openListView": "liste olarak aç",
+    "degree": "{{count}} komşu",
+    "totalWeight": "toplam {{count}} ortak değişim"
   }
 }

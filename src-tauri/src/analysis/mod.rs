@@ -11,6 +11,7 @@ pub mod activity;
 pub mod contributor;
 pub mod global;
 pub mod graph;
+pub mod imports;
 pub mod insights;
 pub mod quality;
 
@@ -18,6 +19,7 @@ pub use activity::*;
 pub use contributor::*;
 pub use global::*;
 pub use graph::*;
+pub use imports::*;
 pub use insights::*;
 pub use quality::*;
 
@@ -586,6 +588,31 @@ pub struct RepoHealth {
     pub score: u32,
     pub max: u32,
     pub sub_scores: Vec<HealthSubScore>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportNode {
+    pub path: String,
+    pub language: String,
+    pub in_degree: u32,
+    pub out_degree: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportEdge {
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportGraph {
+    pub nodes: Vec<ImportNode>,
+    pub edges: Vec<ImportEdge>,
+    pub files_scanned: u32,
+    pub external_imports: u32,
 }
 
 // ---------- shared helpers ----------
