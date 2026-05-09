@@ -24,6 +24,25 @@ export const IDE_OPTIONS = [
 export type IdeChoice = (typeof IDE_OPTIONS)[number]["value"];
 const VALID_IDES: readonly string[] = IDE_OPTIONS.map((o) => o.value);
 
+export const TERMINAL_OPTIONS = [
+  { value: "system", label: "System default" },
+  { value: "terminal", label: "Terminal (macOS)" },
+  { value: "iterm", label: "iTerm" },
+  { value: "warp", label: "Warp" },
+  { value: "ghostty", label: "Ghostty" },
+  { value: "alacritty", label: "Alacritty" },
+  { value: "kitty", label: "kitty" },
+  { value: "wezterm", label: "WezTerm" },
+  { value: "hyper", label: "Hyper" },
+  { value: "tabby", label: "Tabby" },
+  { value: "windows-terminal", label: "Windows Terminal" },
+  { value: "gnome-terminal", label: "GNOME Terminal" },
+  { value: "konsole", label: "Konsole" },
+  { value: "xterm", label: "xterm" },
+] as const;
+export type TerminalChoice = (typeof TERMINAL_OPTIONS)[number]["value"];
+const VALID_TERMINALS: readonly string[] = TERMINAL_OPTIONS.map((o) => o.value);
+
 export type DateRangePreset =
   | "all"
   | "7d"
@@ -58,6 +77,8 @@ type AppContextValue = {
   setDateRange: (r: DateRangePreset) => void;
   ide: IdeChoice;
   setIde: (i: IdeChoice) => void;
+  terminal: TerminalChoice;
+  setTerminal: (t: TerminalChoice) => void;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -67,10 +88,16 @@ const REPO_KEY = "codesight.selectedRepoId";
 const EMAIL_KEY = "codesight.myEmail";
 const DATE_RANGE_KEY = "codesight.dateRange";
 const IDE_KEY = "codesight.ide";
+const TERMINAL_KEY = "codesight.terminal";
 
 function readIde(): IdeChoice {
   const v = localStorage.getItem(IDE_KEY) ?? "";
   return (VALID_IDES.includes(v) ? v : "system") as IdeChoice;
+}
+
+function readTerminal(): TerminalChoice {
+  const v = localStorage.getItem(TERMINAL_KEY) ?? "";
+  return (VALID_TERMINALS.includes(v) ? v : "system") as TerminalChoice;
 }
 
 const VALID_RANGES: DateRangePreset[] = ["all", "7d", "30d", "90d", "6m", "1y"];
@@ -116,6 +143,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     readDateRange(),
   );
   const [ide, setIdeState] = useState<IdeChoice>(() => readIde());
+  const [terminal, setTerminalState] = useState<TerminalChoice>(() => readTerminal());
 
   useEffect(() => {
     applyTheme(theme);
@@ -152,6 +180,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(IDE_KEY, i);
   };
 
+  const setTerminal = (t: TerminalChoice) => {
+    setTerminalState(t);
+    localStorage.setItem(TERMINAL_KEY, t);
+  };
+
   const value = useMemo<AppContextValue>(
     () => ({
       selectedRepoId,
@@ -164,8 +197,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setDateRange,
       ide,
       setIde,
+      terminal,
+      setTerminal,
     }),
-    [selectedRepoId, theme, myEmail, dateRange, ide],
+    [selectedRepoId, theme, myEmail, dateRange, ide, terminal],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

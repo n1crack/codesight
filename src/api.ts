@@ -27,6 +27,7 @@ import type {
   GraphCommit,
   HeatmapData,
   HistorySecretReport,
+  HookTemplate,
   LanguageStat,
   OwnershipReport,
   QualityReport,
@@ -48,8 +49,29 @@ export const api = {
     invoke<void>("reorder_repositories", { orderedIds }),
   openInIde: (ide: string, path: string) =>
     invoke<void>("open_in_ide", { ide, path }),
+  openInTerminal: (terminal: string, path: string) =>
+    invoke<void>("open_in_terminal", { terminal, path }),
   getGitConfig: (id: number) =>
     invoke<GitConfigView>("get_git_config", { id }),
+  setGitUser: (id: number, name: string | null, email: string | null) =>
+    invoke<void>("set_git_user", { id, name, email }),
+  addRemote: (id: number, name: string, url: string) =>
+    invoke<void>("add_remote", { id, name, url }),
+  setRemoteUrl: (
+    id: number,
+    name: string,
+    url: string,
+    pushUrl: string | null,
+  ) => invoke<void>("set_remote_url", { id, name, url, pushUrl }),
+  removeRemote: (id: number, name: string) =>
+    invoke<void>("remove_remote", { id, name }),
+  listHookTemplates: () => invoke<HookTemplate[]>("list_hook_templates"),
+  installHook: (id: number, templateId: string) =>
+    invoke<void>("install_hook", { id, templateId }),
+  uninstallHook: (id: number, hookName: string) =>
+    invoke<void>("uninstall_hook", { id, hookName }),
+  readHook: (id: number, hookName: string) =>
+    invoke<string>("read_hook", { id, hookName }),
   refreshRepo: (id: number) => invoke<void>("refresh_repo", { id }),
   // Repo tags (organization labels)
   listRepoTags: () => invoke<TagWithStats[]>("list_repo_tags"),

@@ -36,11 +36,14 @@ use crate::analysis::{
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
 use crate::repo::{
-    add_discovered_repos_impl, add_repository_impl, assign_tag_impl, create_tag_impl,
-    delete_tag_impl, discover_repos_impl, get_git_config_impl, list_repositories_impl,
-    list_tags_with_stats_impl, open_in_ide_impl, remove_repository_impl,
-    reorder_repositories_impl, scan_folder_impl, set_tag_repos_impl, unassign_tag_impl,
-    update_tag_impl, DiscoveredRepo, GitConfigView, Repository, Tag, TagWithStats,
+    add_discovered_repos_impl, add_remote_impl, add_repository_impl, assign_tag_impl,
+    create_tag_impl, delete_tag_impl, discover_repos_impl, get_git_config_impl,
+    install_hook_impl, list_hook_templates_impl, list_repositories_impl,
+    list_tags_with_stats_impl, open_in_ide_impl, open_in_terminal_impl, read_hook_impl,
+    remove_remote_impl, remove_repository_impl, reorder_repositories_impl, scan_folder_impl,
+    set_git_user_impl, set_remote_url_impl, set_tag_repos_impl, unassign_tag_impl,
+    uninstall_hook_impl, update_tag_impl, DiscoveredRepo, GitConfigView, HookTemplate,
+    Repository, Tag, TagWithStats,
 };
 
 pub struct AppState {
@@ -177,12 +180,114 @@ async fn open_in_ide(ide: String, path: String) -> AppResult<()> {
 }
 
 #[tauri::command]
+async fn open_in_terminal(terminal: String, path: String) -> AppResult<()> {
+    tauri::async_runtime::spawn_blocking(move || open_in_terminal_impl(&terminal, &path))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
 async fn get_git_config(
     state: tauri::State<'_, AppState>,
     id: i64,
 ) -> AppResult<GitConfigView> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || get_git_config_impl(&db, id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn set_git_user(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    name: Option<String>,
+    email: Option<String>,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || set_git_user_impl(&db, id, name, email))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn add_remote(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    name: String,
+    url: String,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || add_remote_impl(&db, id, &name, &url))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn set_remote_url(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    name: String,
+    url: String,
+    push_url: Option<String>,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        set_remote_url_impl(&db, id, &name, &url, push_url)
+    })
+    .await
+    .unwrap()
+}
+
+#[tauri::command]
+async fn remove_remote(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    name: String,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || remove_remote_impl(&db, id, &name))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn list_hook_templates() -> AppResult<Vec<HookTemplate>> {
+    list_hook_templates_impl()
+}
+
+#[tauri::command]
+async fn install_hook(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    template_id: String,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || install_hook_impl(&db, id, &template_id))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn uninstall_hook(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    hook_name: String,
+) -> AppResult<()> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || uninstall_hook_impl(&db, id, &hook_name))
+        .await
+        .unwrap()
+}
+
+#[tauri::command]
+async fn read_hook(
+    state: tauri::State<'_, AppState>,
+    id: i64,
+    hook_name: String,
+) -> AppResult<String> {
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || read_hook_impl(&db, id, &hook_name))
         .await
         .unwrap()
 }
@@ -660,7 +765,16 @@ pub fn run() {
             remove_repository,
             reorder_repositories,
             open_in_ide,
+            open_in_terminal,
             get_git_config,
+            set_git_user,
+            add_remote,
+            set_remote_url,
+            remove_remote,
+            list_hook_templates,
+            install_hook,
+            uninstall_hook,
+            read_hook,
             refresh_repo,
             create_tag,
             update_tag,

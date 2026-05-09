@@ -47,6 +47,7 @@ export interface GitHook {
   name: string;
   path: string;
   executable: boolean;
+  managed: boolean;
 }
 
 export interface GitConfigView {
@@ -63,6 +64,14 @@ export interface GitConfigView {
   coreIgnorecase: string | null;
   remotes: GitRemote[];
   hooks: GitHook[];
+}
+
+export interface HookTemplate {
+  id: string;
+  hookName: string;
+  title: string;
+  description: string;
+  body: string;
 }
 
 export interface RepoSummary {

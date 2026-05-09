@@ -261,9 +261,9 @@ Grouped by pillar; every command is a `#[tauri::command] async fn` wrapping `spa
 ## Adding a new metric
 
 1. **Pick the pillar.** Deterministic count → **Activity**. Heuristic / opinion → **Insights**. DAG / ref-aware → **Graph**.
-2. **Backend (`src-tauri/src/analysis.rs`)**
-   - Define a `Serialize`/`Deserialize` struct. For heuristic explanations, prefer a tagged enum with numeric data over a hardcoded string — let the frontend localize.
-   - Implement `your_metric_impl(db: &Db, ...) -> AppResult<T>` — reuse `walk_diffs` if you need per-commit diffs.
+2. **Backend (`src-tauri/src/analysis/`)** — pick the file matching the pillar (`activity.rs`, `contributor.rs`, `insights.rs`, `graph.rs`, `global.rs`, `quality.rs`); shared types and helpers live in `mod.rs`.
+   - Define a `Serialize`/`Deserialize` struct in `mod.rs` (re-exported via `pub use`). For heuristic explanations, prefer a tagged enum with numeric data over a hardcoded string — let the frontend localize.
+   - Implement `your_metric_impl(db: &Db, ...) -> AppResult<T>` — reuse `walk_diffs` from `mod.rs` if you need per-commit diffs.
 3. **Tauri command (`src-tauri/src/lib.rs`)**
    - `#[tauri::command] async fn` wrapping `spawn_blocking`
    - Add to `invoke_handler![…]`
@@ -279,13 +279,12 @@ Grouped by pillar; every command is a `#[tauri::command] async fn` wrapping `spa
 
 ## Roadmap
 
-Recently shipped: Repo Health Score, Stale Branch Risk, Churn Risk Index, Ownership Concentration Alerts, Contributor Volatility, code-split bundle, ⌘K palette with match highlighting, custom chart tooltips, three-pillar IA, HEAD-keyed SQLite analysis cache, global date-range filter, Shiki diff syntax highlighting + side-by-side mode with synced scroll, **repo tagging with drag-and-drop reordering and tag-group moves**, **OS-level folder drop** with discovery modal, **Quality & Security** scanner (5 groups + suggestions + deep history secret scan with progress), **Health = activity + quality** combined score, **Open-in-editor** integration with default-editor preference, **read-only Git config view** (user / remotes / hooks).
+Recently shipped: Repo Health Score, Stale Branch Risk, Churn Risk Index, Ownership Concentration Alerts, Contributor Volatility, code-split bundle, ⌘K palette with match highlighting, custom chart tooltips, three-pillar IA, HEAD-keyed SQLite analysis cache, global date-range filter, Shiki diff syntax highlighting + side-by-side mode with synced scroll, **repo tagging with drag-and-drop reordering and tag-group moves**, **OS-level folder drop** with discovery modal, **Quality & Security** scanner (5 groups + suggestions + deep history secret scan with progress), **Health = activity + quality** combined score, **Open-in-editor** integration with default-editor preference, **Open-in-terminal** with default-terminal preference (Terminal / iTerm / Warp / Ghostty / Alacritty / kitty / WezTerm / Hyper / Tabby / GNOME / Konsole / xterm / Windows Terminal), **editable Git config** (`user.name` / `user.email` + add / edit / remove remotes), **hook-template installer** (Conventional Commits / strip-trailing-whitespace / block-direct-push-to-main) with codesight-managed marker, preview, and one-click uninstall.
 
 Next:
 
 - [ ] Markdown / PNG export of pages and charts
-- [ ] Editable git config (set `user.email`, add/remove remotes, install hook templates)
-- [ ] Per-repo "open in terminal" + native git client conveniences
+- [ ] Native git client conveniences (open in Tower / Sourcetree / GitKraken)
 - [ ] Graph pillar deepening: file co-change network, ownership map, import dependency graph
 - [ ] Windows MSI + macOS DMG + auto-updates
 

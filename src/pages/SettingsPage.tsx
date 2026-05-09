@@ -4,11 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { PageHeader } from "@/components/PageHeader";
 import { SUPPORTED_LANGS } from "@/i18n";
-import { IDE_OPTIONS, useAppState, type IdeChoice } from "@/state/AppState";
+import {
+  IDE_OPTIONS,
+  TERMINAL_OPTIONS,
+  useAppState,
+  type IdeChoice,
+  type TerminalChoice,
+} from "@/state/AppState";
 
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
-  const { theme, setTheme, ide, setIde } = useAppState();
+  const { theme, setTheme, ide, setIde, terminal, setTerminal } = useAppState();
 
   return (
     <>
@@ -61,6 +67,24 @@ export function SettingsPage() {
               />
               <p className="mt-2 text-xs text-muted-foreground">
                 {t("settings.ideHint")}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("settings.terminal")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select<TerminalChoice>
+                value={terminal}
+                onChange={setTerminal}
+                options={TERMINAL_OPTIONS.map((o) => ({
+                  value: o.value,
+                  label: o.label,
+                }))}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("settings.terminalHint")}
               </p>
             </CardContent>
           </Card>

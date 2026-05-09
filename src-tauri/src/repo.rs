@@ -231,6 +231,111 @@ pub fn open_in_ide_impl(ide: &str, path: &str) -> AppResult<()> {
     Ok(())
 }
 
+// ---------- Terminal open ----------
+
+// Whitelist of terminal identifiers we accept.
+// On macOS these map to .app bundle names launched via `open -a`.
+// On Linux/Windows they map to executable invocations with cwd flags.
+const ALLOWED_TERMINALS: &[&str] = &[
+    "system",
+    "terminal",
+    "iterm",
+    "warp",
+    "ghostty",
+    "alacritty",
+    "kitty",
+    "wezterm",
+    "hyper",
+    "tabby",
+    "gnome-terminal",
+    "konsole",
+    "xterm",
+    "windows-terminal",
+];
+
+pub fn open_in_terminal_impl(terminal: &str, path: &str) -> AppResult<()> {
+    if !ALLOWED_TERMINALS.contains(&terminal) {
+        return Err(AppError::Other(format!("unsupported terminal: {}", terminal)));
+    }
+
+    let result = spawn_terminal(terminal, path);
+    result.map_err(|e| AppError::Other(format!("could not launch terminal '{}': {}", terminal, e)))?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn spawn_terminal(terminal: &str, path: &str) -> std::io::Result<std::process::Child> {
+    // macOS apps are launched by bundle name via `open -a`; the trailing path
+    // becomes the working directory of the new window.
+    let app = match terminal {
+        "system" | "terminal" => "Terminal",
+        "iterm" => "iTerm",
+        "warp" => "Warp",
+        "ghostty" => "Ghostty",
+        "alacritty" => "Alacritty",
+        "kitty" => "kitty",
+        "wezterm" => "WezTerm",
+        "hyper" => "Hyper",
+        "tabby" => "Tabby",
+        // Linux/Windows-only choices fall back to system Terminal on macOS.
+        _ => "Terminal",
+    };
+    Command::new("open").args(["-a", app, path]).spawn()
+}
+
+#[cfg(target_os = "windows")]
+fn spawn_terminal(terminal: &str, path: &str) -> std::io::Result<std::process::Child> {
+    match terminal {
+        "system" | "windows-terminal" => Command::new("cmd")
+            .args(["/C", "start", "wt", "-d", path])
+            .spawn(),
+        "alacritty" => Command::new("alacritty")
+            .args(["--working-directory", path])
+            .spawn(),
+        "kitty" => Command::new("kitty").args(["-d", path]).spawn(),
+        "wezterm" => Command::new("wezterm")
+            .args(["start", "--cwd", path])
+            .spawn(),
+        "ghostty" => Command::new("ghostty")
+            .args([&format!("--working-directory={}", path)])
+            .spawn(),
+        "tabby" => Command::new("tabby").args(["open", path]).spawn(),
+        // No-op for macOS-only choices on Windows: fall back to default cmd.
+        _ => Command::new("cmd")
+            .args(["/C", "start", "cmd", "/K", "cd", "/d", path])
+            .spawn(),
+    }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn spawn_terminal(terminal: &str, path: &str) -> std::io::Result<std::process::Child> {
+    match terminal {
+        "system" => Command::new("x-terminal-emulator")
+            .current_dir(path)
+            .spawn()
+            .or_else(|_| Command::new("xterm").current_dir(path).spawn()),
+        "alacritty" => Command::new("alacritty")
+            .args(["--working-directory", path])
+            .spawn(),
+        "kitty" => Command::new("kitty").args(["-d", path]).spawn(),
+        "wezterm" => Command::new("wezterm")
+            .args(["start", "--cwd", path])
+            .spawn(),
+        "ghostty" => Command::new("ghostty")
+            .args([&format!("--working-directory={}", path)])
+            .spawn(),
+        "gnome-terminal" => Command::new("gnome-terminal")
+            .args([&format!("--working-directory={}", path)])
+            .spawn(),
+        "konsole" => Command::new("konsole").args(["--workdir", path]).spawn(),
+        "xterm" => Command::new("xterm").current_dir(path).spawn(),
+        "hyper" => Command::new("hyper").arg(path).spawn(),
+        "tabby" => Command::new("tabby").args(["open", path]).spawn(),
+        // macOS / Windows-only choices fall back to xterm on Linux.
+        _ => Command::new("xterm").current_dir(path).spawn(),
+    }
+}
+
 // ---------- Git config (view-only) ----------
 
 #[derive(Debug, Serialize)]
@@ -247,6 +352,7 @@ pub struct GitHook {
     pub name: String,
     pub path: String,
     pub executable: bool,
+    pub managed: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -317,10 +423,14 @@ pub fn get_git_config_impl(db: &Db, id: i64) -> AppResult<GitConfigView> {
                     continue;
                 }
                 let executable = is_executable(&path);
+                let managed = std::fs::read_to_string(&path)
+                    .map(|c| c.contains(CODESIGHT_HOOK_MARKER))
+                    .unwrap_or(false);
                 hooks.push(GitHook {
                     name,
                     path: path.display().to_string(),
                     executable,
+                    managed,
                 });
             }
         }
@@ -343,6 +453,280 @@ pub fn get_git_config_impl(db: &Db, id: i64) -> AppResult<GitConfigView> {
         remotes,
         hooks,
     })
+}
+
+// ---------- Git config (mutating) ----------
+
+/// Set or clear `user.name` / `user.email` on the local repo config.
+/// An empty `value` removes the entry so the global value takes over.
+pub fn set_git_user_impl(
+    db: &Db,
+    id: i64,
+    name: Option<String>,
+    email: Option<String>,
+) -> AppResult<()> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = GitRepository::open(&repo_meta.path)
+        .map_err(|e| AppError::Other(format!("open repo failed: {}", e)))?;
+    let mut config = repo
+        .config()
+        .map_err(|e| AppError::Other(format!("open config failed: {}", e)))?;
+
+    apply_string_entry(&mut config, "user.name", name.as_deref())?;
+    apply_string_entry(&mut config, "user.email", email.as_deref())?;
+    Ok(())
+}
+
+fn apply_string_entry(
+    config: &mut git2::Config,
+    key: &str,
+    value: Option<&str>,
+) -> AppResult<()> {
+    match value {
+        Some(v) if !v.trim().is_empty() => config
+            .set_str(key, v.trim())
+            .map_err(|e| AppError::Other(format!("set {} failed: {}", key, e))),
+        _ => match config.remove(key) {
+            Ok(_) => Ok(()),
+            Err(e) if e.code() == git2::ErrorCode::NotFound => Ok(()),
+            Err(e) => Err(AppError::Other(format!("remove {} failed: {}", key, e))),
+        },
+    }
+}
+
+/// Add a new remote. Fails if a remote with the same name already exists.
+pub fn add_remote_impl(db: &Db, id: i64, name: &str, url: &str) -> AppResult<()> {
+    validate_remote_name(name)?;
+    if url.trim().is_empty() {
+        return Err(AppError::Other("remote url cannot be empty".into()));
+    }
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = GitRepository::open(&repo_meta.path)
+        .map_err(|e| AppError::Other(format!("open repo failed: {}", e)))?;
+    repo.remote(name, url.trim())
+        .map_err(|e| AppError::Other(format!("add remote failed: {}", e)))?;
+    Ok(())
+}
+
+/// Update an existing remote's fetch URL (and optionally push URL).
+pub fn set_remote_url_impl(
+    db: &Db,
+    id: i64,
+    name: &str,
+    url: &str,
+    push_url: Option<String>,
+) -> AppResult<()> {
+    validate_remote_name(name)?;
+    if url.trim().is_empty() {
+        return Err(AppError::Other("remote url cannot be empty".into()));
+    }
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = GitRepository::open(&repo_meta.path)
+        .map_err(|e| AppError::Other(format!("open repo failed: {}", e)))?;
+    repo.remote_set_url(name, url.trim())
+        .map_err(|e| AppError::Other(format!("set remote url failed: {}", e)))?;
+    match push_url.as_deref().map(str::trim) {
+        Some(p) if !p.is_empty() => repo
+            .remote_set_pushurl(name, Some(p))
+            .map_err(|e| AppError::Other(format!("set remote pushurl failed: {}", e)))?,
+        _ => repo
+            .remote_set_pushurl(name, None)
+            .map_err(|e| AppError::Other(format!("clear remote pushurl failed: {}", e)))?,
+    }
+    Ok(())
+}
+
+pub fn remove_remote_impl(db: &Db, id: i64, name: &str) -> AppResult<()> {
+    validate_remote_name(name)?;
+    let repo_meta = get_repository_impl(db, id)?;
+    let repo = GitRepository::open(&repo_meta.path)
+        .map_err(|e| AppError::Other(format!("open repo failed: {}", e)))?;
+    repo.remote_delete(name)
+        .map_err(|e| AppError::Other(format!("remove remote failed: {}", e)))?;
+    Ok(())
+}
+
+fn validate_remote_name(name: &str) -> AppResult<()> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::Other("remote name cannot be empty".into()));
+    }
+    if !trimmed
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    {
+        return Err(AppError::Other(format!(
+            "invalid remote name: {} (allowed: alnum, '-', '_', '.')",
+            trimmed
+        )));
+    }
+    Ok(())
+}
+
+// ---------- Git hook templates ----------
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HookTemplate {
+    pub id: &'static str,
+    pub hook_name: &'static str,
+    pub title: &'static str,
+    pub description: &'static str,
+    pub body: &'static str,
+}
+
+const HOOK_TEMPLATES: &[HookTemplate] = &[
+    HookTemplate {
+        id: "conventional-commit-msg",
+        hook_name: "commit-msg",
+        title: "Conventional Commits",
+        description: "Reject commit messages that don't follow the conventional commits format (feat / fix / chore / etc.).",
+        body: r#"#!/usr/bin/env bash
+# Installed by codesight: enforce Conventional Commits subject format.
+set -eu
+
+msg_file="${1:?missing commit message file}"
+first_line=$(head -n 1 "$msg_file" || true)
+
+# Allow merges, reverts, and fixups so rebases stay smooth.
+if [[ "$first_line" =~ ^(Merge|Revert|fixup!|squash!)\  ]]; then
+  exit 0
+fi
+
+pattern='^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert)(\([^)]+\))?!?: .{1,72}$'
+if [[ ! "$first_line" =~ $pattern ]]; then
+  echo "✖ commit message does not follow Conventional Commits."
+  echo "  Expected:  <type>(<scope>): <subject>"
+  echo "  Example:   feat(auth): add OAuth callback handler"
+  exit 1
+fi
+"#,
+    },
+    HookTemplate {
+        id: "trailing-whitespace-pre-commit",
+        hook_name: "pre-commit",
+        title: "Strip trailing whitespace",
+        description: "Block commits that introduce trailing whitespace on staged lines.",
+        body: r#"#!/usr/bin/env bash
+# Installed by codesight: warn on trailing whitespace in staged hunks.
+set -eu
+
+if git diff --cached --check; then
+  exit 0
+fi
+echo
+echo "✖ Found trailing whitespace or whitespace errors in staged changes."
+echo "  Run \`git diff --cached --check\` to see them, then re-stage."
+exit 1
+"#,
+    },
+    HookTemplate {
+        id: "protected-branch-pre-push",
+        hook_name: "pre-push",
+        title: "Block direct push to main",
+        description: "Refuse pushes that update `main` or `master` directly. Override with --no-verify when intentional.",
+        body: r#"#!/usr/bin/env bash
+# Installed by codesight: refuse direct pushes to default branches.
+set -eu
+
+protected_re='^refs/heads/(main|master)$'
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$remote_ref" =~ $protected_re ]]; then
+    echo "✖ Refusing direct push to $remote_ref."
+    echo "  Open a pull request, or override with: git push --no-verify"
+    exit 1
+  fi
+done
+
+exit 0
+"#,
+    },
+];
+
+const CODESIGHT_HOOK_MARKER: &str = "Installed by codesight";
+
+pub fn list_hook_templates_impl() -> AppResult<Vec<HookTemplate>> {
+    Ok(HOOK_TEMPLATES.to_vec())
+}
+
+fn find_template(id: &str) -> AppResult<&'static HookTemplate> {
+    HOOK_TEMPLATES
+        .iter()
+        .find(|t| t.id == id)
+        .ok_or_else(|| AppError::Other(format!("unknown hook template: {}", id)))
+}
+
+fn hook_path(repo_path: &str, hook_name: &str) -> PathBuf {
+    PathBuf::from(repo_path).join(".git").join("hooks").join(hook_name)
+}
+
+pub fn install_hook_impl(db: &Db, id: i64, template_id: &str) -> AppResult<()> {
+    let template = find_template(template_id)?;
+    let repo_meta = get_repository_impl(db, id)?;
+    let target = hook_path(&repo_meta.path, template.hook_name);
+
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| AppError::Other(format!("create hooks dir failed: {}", e)))?;
+    }
+
+    if target.exists() {
+        let existing = std::fs::read_to_string(&target).unwrap_or_default();
+        if !existing.contains(CODESIGHT_HOOK_MARKER) {
+            return Err(AppError::Other(format!(
+                "{} already exists and was not installed by codesight; refusing to overwrite",
+                template.hook_name
+            )));
+        }
+    }
+
+    std::fs::write(&target, template.body)
+        .map_err(|e| AppError::Other(format!("write hook failed: {}", e)))?;
+    set_executable(&target)?;
+    Ok(())
+}
+
+pub fn uninstall_hook_impl(db: &Db, id: i64, hook_name: &str) -> AppResult<()> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let target = hook_path(&repo_meta.path, hook_name);
+    if !target.exists() {
+        return Ok(());
+    }
+    let existing = std::fs::read_to_string(&target).unwrap_or_default();
+    if !existing.contains(CODESIGHT_HOOK_MARKER) {
+        return Err(AppError::Other(format!(
+            "{} was not installed by codesight; refusing to delete",
+            hook_name
+        )));
+    }
+    std::fs::remove_file(&target)
+        .map_err(|e| AppError::Other(format!("remove hook failed: {}", e)))?;
+    Ok(())
+}
+
+pub fn read_hook_impl(db: &Db, id: i64, hook_name: &str) -> AppResult<String> {
+    let repo_meta = get_repository_impl(db, id)?;
+    let target = hook_path(&repo_meta.path, hook_name);
+    std::fs::read_to_string(&target)
+        .map_err(|e| AppError::Other(format!("read hook failed: {}", e)))
+}
+
+#[cfg(unix)]
+fn set_executable(path: &Path) -> AppResult<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut perms = std::fs::metadata(path)
+        .map_err(|e| AppError::Other(format!("stat hook failed: {}", e)))?
+        .permissions();
+    perms.set_mode(perms.mode() | 0o755);
+    std::fs::set_permissions(path, perms)
+        .map_err(|e| AppError::Other(format!("chmod hook failed: {}", e)))?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn set_executable(_path: &Path) -> AppResult<()> {
+    Ok(())
 }
 
 #[cfg(unix)]
