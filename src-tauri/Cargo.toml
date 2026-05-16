@@ -1,9 +1,13 @@
 [package]
 name = "codesight"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Local Git Intelligence Layer — offline desktop app for deterministic git metrics, heuristic insights, and graph-aware structural views."
+authors = ["Yusuf Özdemir <yusuf@ozdemir.be>"]
 edition = "2021"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/n1crack/codesight"
+homepage = "https://codesight.ozdemir.be"
+readme = "../README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

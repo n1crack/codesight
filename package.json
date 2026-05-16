@@ -3,6 +3,17 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "description": "Local Git Intelligence Layer — a free, offline desktop app that turns .git directories into deterministic metrics, heuristic insights, and graph-aware structural views.",
+  "license": "AGPL-3.0-or-later",
+  "author": "Yusuf Özdemir <yusuf@ozdemir.be>",
+  "homepage": "https://codesight.ozdemir.be",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/n1crack/codesight.git"
+  },
+  "bugs": {
+    "url": "https://github.com/n1crack/codesight/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
