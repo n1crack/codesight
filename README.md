@@ -8,6 +8,8 @@ Built with **React + Rust + Tauri**. Single binary; no system git or sqlite requ
 - Homepage: <https://codesight.ozdemir.be>
 - License: **AGPL-3.0** — source-available, modifications must be released under the same license
 
+![codesight — cross-repo home dashboard](docs/screenshot-home.png)
+
 ---
 
 ## Why codesight?
@@ -64,6 +66,9 @@ DAG-aware analysis: structure, refs, ancestry.
 - **DAG** — gitk-style commit graph across all branches, lane layout, ref labels (HEAD / branches / tags)
 - **Branches** — local & remote, HEAD pin, ahead/behind vs. default, stale-branch filter, **Stale-Branch Risk badges** (low/medium/high) based on per-branch unique commits — flags potential lost work
 - **Releases** — chronological tags with tagger, message, commits-since-previous
+- **Co-change network** (`/graph/couplings`) — force-directed graph of files that change together; nodes sized by degree, edges weighted by joint changes
+- **Ownership treemap** (`/graph/ownership-map`) — squarified treemap where tile size = total commits and color = primary author
+- **Import dependency graph** (`/graph/imports`) — parses TS/JS/Rust/Python imports and renders a directed module dependency graph
 
 ---
 
@@ -217,8 +222,17 @@ codesight/
 │   └── lib/                   # graphLayout, format, useChartTooltip, cn
 ├── src-tauri/
 │   ├── src/
-│   │   ├── lib.rs             # #[tauri::command] handlers
-│   │   ├── analysis.rs        # All git analytics + diff walks + heuristic layers
+│   │   ├── main.rs            # binary entry point
+│   │   ├── lib.rs             # #[tauri::command] handlers + invoke_handler
+│   │   ├── analysis/          # all git analytics, split by pillar
+│   │   │   ├── mod.rs         # shared types + walk_diffs primitive
+│   │   │   ├── activity.rs    # deterministic counts/rates
+│   │   │   ├── contributor.rs # per-author drill-downs + cohort
+│   │   │   ├── insights.rs    # health, hotspots, churn risk, ownership
+│   │   │   ├── quality.rs     # quality & security scan
+│   │   │   ├── graph.rs       # DAG / branches / tags
+│   │   │   ├── imports.rs     # import dependency parsing
+│   │   │   └── global.rs      # cross-repo aggregations (rayon)
 │   │   ├── repo.rs            # add / scan / list / remove repository
 │   │   ├── db.rs              # SQLite wrapper
 │   │   └── error.rs           # AppError + Serialize
@@ -258,7 +272,7 @@ Grouped by pillar; every command is a `#[tauri::command] async fn` wrapping `spa
   - App state: React Context → `localStorage` (selected repo, theme, my-email filter, sidebar pane height)
   - Disk: SQLite at `dirs::data_local_dir()/codesight/codesight.sqlite` — currently only repository list. Incremental analysis cache is on the roadmap.
 - **Performance-tuned tooltips.** `useChartTooltip<T>()` hook + `<ChartTooltip>` component: state changes only when the active cell changes; mouse-position updates write directly to `tooltipRef.current.style.transform` (translate3d → GPU compositing), never trigger React re-renders. Used in Heatmap and Patterns charts.
-- **Three-pillar IA.** Routes are nested: `/activity/{heatmap,timeline,patterns}`, `/insights/{health,hotspots,ownership,authors,messages}`, `/graph/{dag,branches,releases}`. Every new metric must clearly belong to one pillar; backward-compat redirects keep old flat URLs working.
+- **Three-pillar IA.** Routes are nested: `/activity/{heatmap,timeline,patterns}`, `/insights/{health,hotspots,ownership,authors,messages,quality}`, `/graph/{dag,branches,releases,couplings,ownership-map,imports}`. Every new metric must clearly belong to one pillar; backward-compat redirects keep old flat URLs working.
 
 ---
 
@@ -283,9 +297,20 @@ Grouped by pillar; every command is a `#[tauri::command] async fn` wrapping `spa
 
 ## Roadmap
 
-Recently shipped: Repo Health Score, Stale Branch Risk, Churn Risk Index, Ownership Concentration Alerts, Contributor Volatility, code-split bundle, ⌘K palette with match highlighting, custom chart tooltips, three-pillar IA, HEAD-keyed SQLite analysis cache, global date-range filter, Shiki diff syntax highlighting + side-by-side mode with synced scroll, **repo tagging with drag-and-drop reordering and tag-group moves**, **OS-level folder drop** with discovery modal, **Quality & Security** scanner (5 groups + suggestions + deep history secret scan with progress), **Health = activity + quality** combined score, **Open-in-editor** integration with default-editor preference, **Open-in-terminal** with default-terminal preference (Terminal / iTerm / Warp / Ghostty / Alacritty / kitty / WezTerm / Hyper / Tabby / GNOME / Konsole / xterm / Windows Terminal), **editable Git config** (`user.name` / `user.email` + add / edit / remove remotes), **hook-template installer** (Conventional Commits / strip-trailing-whitespace / block-direct-push-to-main) with codesight-managed marker, preview, and one-click uninstall, **PNG chart export** rolled out across Heatmap / Patterns / Timeline / Contributor cohort / Comparison via a shared `<ExportPngButton>` (theme-aware background + computed-style inlining), **Markdown copy-to-clipboard** for tabular data on Hotspots / Contributors / Ownership / Health pages (GFM tables with safe pipe / backtick escaping), **Open-in-git-client** with default-client preference (Tower / Sourcetree / GitKraken / Fork / GitUp / SmartGit / Sublime Merge / GitHub Desktop), **co-change network** under Graph (`/graph/couplings`) — pure-JS force-directed layout over `get_file_couplings`, no extra deps; nodes sized by degree, edges weighted by joint changes, theme-aware tooltip + PNG export, **ownership treemap** (`/graph/ownership-map`) — pure-JS squarified Bruls/Huijing/van Wijk algorithm over `get_ownership_report.files`, tile size = total commits, color = primary-author hash (stable HSL), **import dependency graph** (`/graph/imports`) — backend `analysis::imports` parses TS/JS/Rust/Python via regex and resolves repo-relative specifiers (`./x`, `@/x`, `crate::x`, `.x`) against the HEAD tree, frontend renders directed force-layout with arrowheads + per-language palette and a "compare with co-change network" link, **bottom status bar** with branch picker (search-filterable popover, switches via `git2` `safe()` checkout), live ahead/behind vs upstream, dirty indicator (staged/modified/untracked/conflicts), and one-click fetch / pull (`--ff-only`) / push that shell out to the user's `git` so credentials/SSH agent just work.
+### Recently shipped
 
-Next:
+- **Insights & scoring** — Repo Health Score, Stale Branch Risk, Churn Risk Index, Ownership Concentration Alerts, Contributor Volatility, combined Health = activity + quality score
+- **Quality & Security** — five-group scanner with prioritized suggestions and a deep history secret scan (with live progress)
+- **Graph views** — co-change network (`/graph/couplings`), ownership treemap (`/graph/ownership-map`), import dependency graph (`/graph/imports`, TS/JS/Rust/Python)
+- **Repo organization** — tagging with drag-and-drop reordering and tag-group moves, OS-level folder drop with a discovery modal
+- **Git operations** — bottom status bar with branch picker, live ahead/behind, dirty indicator, and one-click fetch / pull (`--ff-only`) / push via the user's `git`
+- **Editable Git config** — `user.name` / `user.email`, add / edit / remove remotes, plus a hook-template installer (Conventional Commits / strip-trailing-whitespace / block-direct-push-to-main) with preview and one-click uninstall
+- **External tools** — open-in-editor, open-in-terminal, and open-in-git-client, each with a default-tool preference
+- **Export** — PNG chart export (shared `<ExportPngButton>`) and Markdown copy-to-clipboard (GFM tables) across the data-heavy pages
+- **UX & perf** — ⌘K palette with match highlighting, custom chart tooltips, three-pillar IA, Shiki diff highlighting + synced side-by-side mode, HEAD-keyed SQLite analysis cache, global date-range filter, code-split bundle
+
+### Next
+
 - [ ] Windows MSI + macOS DMG + auto-updates
 
 ---
