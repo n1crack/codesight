@@ -1,0 +1,13 @@
+name: Deploy site on release
+
+# Fire a deploy webhook only when a stable GitHub Release is published.
+on:
+  release:
+    types: [released] # sadece stable yayınlar
+
+jobs:
+  trigger-forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Forge deploy
+        run: curl -fsSL -X POST "${{ secrets.FORGE_DEPLOY_HOOK }}"
