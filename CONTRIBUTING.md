@@ -34,7 +34,7 @@ larger contributions we may ask you to confirm this explicitly in the PR.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 20+ and [pnpm](https://pnpm.io/)
+- [Node.js](https://nodejs.org/) 22+ and [pnpm](https://pnpm.io/) 11+
 - [Rust](https://www.rust-lang.org/tools/install) (stable toolchain)
 - Platform-specific Tauri prerequisites — see the
   [Tauri v2 guide](https://v2.tauri.app/start/prerequisites/)
@@ -73,6 +73,27 @@ cargo clippy --manifest-path src-tauri/Cargo.toml
 - [ ] Commits use Conventional Commits.
 - [ ] You agree to the Contributor License Agreement above.
 - [ ] The change is described clearly in the PR body (the *why*, not just the *what*).
+
+## Releasing (maintainers)
+
+Releases use semantic versioning and are tag-driven:
+
+1. Bump the version in **all three** files so they stay in sync:
+   `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`.
+2. Commit the bump (e.g. `chore: release v0.2.0`).
+3. Tag and push:
+
+   ```bash
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+
+The `Release` workflow then builds installers for macOS (Apple Silicon + Intel),
+Windows, and Linux and publishes them to a **draft** GitHub Release for review
+before you hit publish.
+
+> Note: builds are currently **unsigned**. macOS/Windows code signing &
+> notarization can be added later via repository secrets.
 
 ## Reporting bugs & requesting features
 

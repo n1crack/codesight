@@ -140,8 +140,8 @@ DAG-aware analysis: structure, refs, ancestry.
 
 ### Prerequisites
 
-- Node.js 20+
-- pnpm 10+
+- Node.js 22+
+- pnpm 11+
 - Rust 1.80+ (`cargo` on PATH)
 - Platform tooling for Tauri:
   - **macOS:** Xcode Command Line Tools
