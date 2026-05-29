@@ -292,4 +292,15 @@ Next:
 
 ## License
 
-[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html). The privacy posture of codesight ("nothing leaves your machine, no network calls") is auditable precisely because the source is open. AGPL ensures that derivatives — including any hosted/SaaS rewrap — stay open under the same terms.
+[AGPL-3.0-or-later](https://www.gnu.org/licenses/agpl-3.0.html). The privacy posture of codesight ("nothing leaves your machine, no network calls") is auditable precisely because the source is open. AGPL ensures that derivatives — including any hosted/SaaS rewrap — stay open under the same terms.
+
+### Commercial license
+
+codesight is dual-licensed. If the AGPL's copyleft obligations don't fit your
+use case (e.g. you want to bundle codesight into a closed-source product or
+internal proprietary tooling), a commercial license is available. Contact
+**yusuf@ozdemir.be** to discuss terms.
+
+Contributions are accepted under the terms described in
+[CONTRIBUTING.md](CONTRIBUTING.md), which includes a contributor license
+agreement that keeps this dual-licensing model possible.

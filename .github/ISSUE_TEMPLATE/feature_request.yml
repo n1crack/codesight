@@ -1,0 +1,34 @@
+name: Feature request
+description: Suggest an idea for codesight
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this solve? What are you trying to learn about your repo?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe what you'd like to see.
+    validations:
+      required: true
+  - type: dropdown
+    id: pillar
+    attributes:
+      label: Which pillar does this fit?
+      description: See the README. Every feature should fit one of the three.
+      options:
+        - Activity (deterministic metrics)
+        - Insights (heuristics)
+        - Graph (git graph intelligence)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
