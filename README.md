@@ -136,6 +136,35 @@ DAG-aware analysis: structure, refs, ancestry.
 
 ---
 
+## Installing a release build
+
+The downloadable installers are **not yet code-signed or notarized**, so the OS will warn you that the app is untrusted (and on macOS may misleadingly call it "damaged"). The app is fine — these steps tell the OS to trust it. Code signing for both platforms is on the roadmap.
+
+### macOS
+
+You may see *"codesight is damaged and can't be opened. You should eject the disk image."* This is Gatekeeper blocking an unsigned app, not actual damage.
+
+1. Open the `.dmg` and drag **codesight.app** into `Applications`.
+2. Eject the disk image.
+3. Clear the quarantine flag macOS added to the download:
+
+   ```bash
+   xattr -cr /Applications/codesight.app
+   ```
+
+4. Launch codesight normally. (You may need to repeat step 3 after each update.)
+
+Alternatively, right-click the app → **Open** → **Open** in the dialog — though for the "damaged" message the `xattr` command above is the reliable fix.
+
+### Windows
+
+SmartScreen may show *"Windows protected your PC"* because the installer is unsigned.
+
+1. Click **More info**.
+2. Click **Run anyway**.
+
+---
+
 ## Getting started
 
 ### Prerequisites
