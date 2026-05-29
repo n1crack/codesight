@@ -15,24 +15,23 @@ struct ScanProgress {
 }
 
 use crate::analysis::{
-    get_activity_patterns_impl, get_code_churn_impl, get_commit_detail_impl,
-    get_commit_graph_impl, get_commit_heatmap_impl, get_commit_message_stats_impl,
-    get_commit_timeline_impl, get_contributor_detail_impl, get_contributor_heatmap_impl,
+    get_activity_patterns_impl, get_author_specialization_impl, get_churn_risk_impl,
+    get_coauthor_pairs_impl, get_code_churn_impl, get_commit_detail_impl, get_commit_graph_impl,
+    get_commit_heatmap_impl, get_commit_message_stats_impl, get_commit_timeline_impl,
+    get_contributor_cohort_impl, get_contributor_detail_impl, get_contributor_heatmap_impl,
     get_contributor_recent_commits_impl, get_contributor_top_files_impl,
-    get_author_specialization_impl, get_churn_risk_impl, get_coauthor_pairs_impl,
-    get_contributor_cohort_impl, get_directory_hotspots_impl, get_file_couplings_impl,
-    get_file_hotspots_impl, get_global_heatmap_impl,
-    get_global_recent_commits_impl, get_global_summary_impl, get_import_graph_impl,
-    get_language_breakdown_impl,
-    get_ownership_report_impl, get_recent_commits_impl, get_repo_health_impl,
-    get_repo_summary_impl, get_repos_sparklines_impl, get_top_contributors_impl,
-    list_branches_impl, list_known_authors_impl, list_tags_impl, run_history_secret_scan_impl,
-    run_quality_scan_impl, search_commits_impl, ActivityPatterns, AuthorSpecialization,
-    BranchInfo, ChurnPoint, ChurnRiskFile, CoauthorPair, CommitDetail, CommitInfo,
-    CommitMessageStats, Contributor, ContributorCohortPoint, ContributorDetail, DirectoryHotspot,
-    FileCoupling, FileHotspot, GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData,
-    HistorySecretReport, ImportGraph, LanguageStat, OwnershipReport, QualityReport, RepoHealth,
-    RepoSparkline, RepoSummary, SearchParams, TagInfo, TimelinePoint,
+    get_directory_hotspots_impl, get_file_couplings_impl, get_file_hotspots_impl,
+    get_global_heatmap_impl, get_global_recent_commits_impl, get_global_summary_impl,
+    get_import_graph_impl, get_language_breakdown_impl, get_ownership_report_impl,
+    get_recent_commits_impl, get_repo_health_impl, get_repo_summary_impl,
+    get_repos_sparklines_impl, get_top_contributors_impl, list_branches_impl,
+    list_known_authors_impl, list_tags_impl, run_history_secret_scan_impl, run_quality_scan_impl,
+    search_commits_impl, ActivityPatterns, AuthorSpecialization, BranchInfo, ChurnPoint,
+    ChurnRiskFile, CoauthorPair, CommitDetail, CommitInfo, CommitMessageStats, Contributor,
+    ContributorCohortPoint, ContributorDetail, DirectoryHotspot, FileCoupling, FileHotspot,
+    GlobalRecentCommit, GlobalSummary, GraphCommit, HeatmapData, HistorySecretReport, ImportGraph,
+    LanguageStat, OwnershipReport, QualityReport, RepoHealth, RepoSparkline, RepoSummary,
+    SearchParams, TagInfo, TimelinePoint,
 };
 use crate::db::{default_db_path, Db};
 use crate::error::AppResult;
@@ -40,12 +39,12 @@ use crate::repo::{
     add_discovered_repos_impl, add_remote_impl, add_repository_impl, assign_tag_impl,
     checkout_branch_impl, create_tag_impl, delete_tag_impl, discover_repos_impl,
     get_git_config_impl, get_repo_status_impl, git_fetch_impl, git_pull_impl, git_push_impl,
-    install_hook_impl, list_hook_templates_impl, list_repositories_impl,
-    list_tags_with_stats_impl, open_in_git_client_impl, open_in_ide_impl,
-    open_in_terminal_impl, read_hook_impl, remove_remote_impl, remove_repository_impl,
-    reorder_repositories_impl, scan_folder_impl, set_git_user_impl, set_remote_url_impl,
-    set_tag_repos_impl, unassign_tag_impl, uninstall_hook_impl, update_tag_impl,
-    DiscoveredRepo, GitConfigView, HookTemplate, RepoStatus, Repository, Tag, TagWithStats,
+    install_hook_impl, list_hook_templates_impl, list_repositories_impl, list_tags_with_stats_impl,
+    open_in_git_client_impl, open_in_ide_impl, open_in_terminal_impl, read_hook_impl,
+    remove_remote_impl, remove_repository_impl, reorder_repositories_impl, scan_folder_impl,
+    set_git_user_impl, set_remote_url_impl, set_tag_repos_impl, unassign_tag_impl,
+    uninstall_hook_impl, update_tag_impl, DiscoveredRepo, GitConfigView, HookTemplate, RepoStatus,
+    Repository, Tag, TagWithStats,
 };
 
 pub struct AppState {
@@ -110,9 +109,7 @@ async fn delete_tag(state: tauri::State<'_, AppState>, id: i64) -> AppResult<()>
 }
 
 #[tauri::command]
-async fn list_repo_tags(
-    state: tauri::State<'_, AppState>,
-) -> AppResult<Vec<TagWithStats>> {
+async fn list_repo_tags(state: tauri::State<'_, AppState>) -> AppResult<Vec<TagWithStats>> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || list_tags_with_stats_impl(&db))
         .await
@@ -120,11 +117,7 @@ async fn list_repo_tags(
 }
 
 #[tauri::command]
-async fn assign_tag(
-    state: tauri::State<'_, AppState>,
-    repo_id: i64,
-    tag_id: i64,
-) -> AppResult<()> {
+async fn assign_tag(state: tauri::State<'_, AppState>, repo_id: i64, tag_id: i64) -> AppResult<()> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || assign_tag_impl(&db, repo_id, tag_id))
         .await
@@ -196,10 +189,7 @@ async fn open_in_git_client(client: String, path: String) -> AppResult<()> {
 }
 
 #[tauri::command]
-async fn get_repo_status(
-    state: tauri::State<'_, AppState>,
-    id: i64,
-) -> AppResult<RepoStatus> {
+async fn get_repo_status(state: tauri::State<'_, AppState>, id: i64) -> AppResult<RepoStatus> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || get_repo_status_impl(&db, id))
         .await
@@ -243,10 +233,7 @@ async fn git_push(state: tauri::State<'_, AppState>, id: i64) -> AppResult<Strin
 }
 
 #[tauri::command]
-async fn get_git_config(
-    state: tauri::State<'_, AppState>,
-    id: i64,
-) -> AppResult<GitConfigView> {
+async fn get_git_config(state: tauri::State<'_, AppState>, id: i64) -> AppResult<GitConfigView> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || get_git_config_impl(&db, id))
         .await
@@ -296,11 +283,7 @@ async fn set_remote_url(
 }
 
 #[tauri::command]
-async fn remove_remote(
-    state: tauri::State<'_, AppState>,
-    id: i64,
-    name: String,
-) -> AppResult<()> {
+async fn remove_remote(state: tauri::State<'_, AppState>, id: i64, name: String) -> AppResult<()> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || remove_remote_impl(&db, id, &name))
         .await
@@ -488,11 +471,9 @@ async fn get_commit_message_stats(
     since: Option<String>,
 ) -> AppResult<CommitMessageStats> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        get_commit_message_stats_impl(&db, id, since)
-    })
-    .await
-    .unwrap()
+    tauri::async_runtime::spawn_blocking(move || get_commit_message_stats_impl(&db, id, since))
+        .await
+        .unwrap()
 }
 
 #[tauri::command]
@@ -515,10 +496,7 @@ async fn get_repos_sparklines(
 }
 
 #[tauri::command]
-async fn list_branches(
-    state: tauri::State<'_, AppState>,
-    id: i64,
-) -> AppResult<Vec<BranchInfo>> {
+async fn list_branches(state: tauri::State<'_, AppState>, id: i64) -> AppResult<Vec<BranchInfo>> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || list_branches_impl(&db, id))
         .await
@@ -650,11 +628,9 @@ async fn get_global_heatmap(
     tag_id: Option<i64>,
 ) -> AppResult<HeatmapData> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        get_global_heatmap_impl(&db, year, email, tag_id)
-    })
-    .await
-    .unwrap()
+    tauri::async_runtime::spawn_blocking(move || get_global_heatmap_impl(&db, year, email, tag_id))
+        .await
+        .unwrap()
 }
 
 #[tauri::command]
@@ -702,18 +678,13 @@ async fn get_author_specialization(
     email: String,
 ) -> AppResult<AuthorSpecialization> {
     let db = state.db.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        get_author_specialization_impl(&db, id, &email)
-    })
-    .await
-    .unwrap()
+    tauri::async_runtime::spawn_blocking(move || get_author_specialization_impl(&db, id, &email))
+        .await
+        .unwrap()
 }
 
 #[tauri::command]
-async fn run_quality_scan(
-    state: tauri::State<'_, AppState>,
-    id: i64,
-) -> AppResult<QualityReport> {
+async fn run_quality_scan(state: tauri::State<'_, AppState>, id: i64) -> AppResult<QualityReport> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || run_quality_scan_impl(&db, id))
         .await
@@ -730,10 +701,7 @@ async fn run_history_secret_scan(
     let app_for_progress = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         run_history_secret_scan_impl(&db, id, move |scanned, total| {
-            let _ = app_for_progress.emit(
-                "scan-progress",
-                ScanProgress { scanned, total },
-            );
+            let _ = app_for_progress.emit("scan-progress", ScanProgress { scanned, total });
         })
     })
     .await
@@ -754,10 +722,7 @@ async fn get_file_couplings(
 }
 
 #[tauri::command]
-async fn get_import_graph(
-    state: tauri::State<'_, AppState>,
-    id: i64,
-) -> AppResult<ImportGraph> {
+async fn get_import_graph(state: tauri::State<'_, AppState>, id: i64) -> AppResult<ImportGraph> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || get_import_graph_impl(&db, id))
         .await
@@ -781,10 +746,7 @@ async fn get_directory_hotspots(
 }
 
 #[tauri::command]
-async fn get_repo_health(
-    state: tauri::State<'_, AppState>,
-    id: i64,
-) -> AppResult<RepoHealth> {
+async fn get_repo_health(state: tauri::State<'_, AppState>, id: i64) -> AppResult<RepoHealth> {
     let db = state.db.clone();
     tauri::async_runtime::spawn_blocking(move || get_repo_health_impl(&db, id))
         .await
@@ -822,7 +784,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let db_path = default_db_path()?;
-            let db = Db::open(db_path).map_err(|e| Box::<dyn std::error::Error>::from(e.to_string()))?;
+            let db =
+                Db::open(db_path).map_err(|e| Box::<dyn std::error::Error>::from(e.to_string()))?;
             app.manage(AppState { db: Arc::new(db) });
             Ok(())
         })

@@ -19,102 +19,102 @@ pub fn get_commit_graph_impl(
     let head = current_head(&repo_meta.path);
     let cache_key = format!("graph:{}", limit);
     cached(db, id, &head, &cache_key, move || {
-    let repo = open(&repo_meta.path)?;
+        let repo = open(&repo_meta.path)?;
 
-    let limit = limit.clamp(1, 2000);
+        let limit = limit.clamp(1, 2000);
 
-    let mut refs_by_oid: HashMap<git2::Oid, Vec<GraphRef>> = HashMap::new();
+        let mut refs_by_oid: HashMap<git2::Oid, Vec<GraphRef>> = HashMap::new();
 
-    let head_oid = repo.head().ok().and_then(|h| h.target());
-    if let Some(oid) = head_oid {
-        refs_by_oid.entry(oid).or_default().push(GraphRef {
-            kind: "HEAD".into(),
-            name: "HEAD".into(),
-        });
-    }
-
-    if let Ok(branches) = repo.branches(None) {
-        for b in branches {
-            let Ok((branch, btype)) = b else { continue };
-            let Ok(Some(name)) = branch.name() else {
-                continue;
-            };
-            let Some(oid) = branch.get().target() else {
-                continue;
-            };
-            let kind = match btype {
-                git2::BranchType::Local => "head",
-                git2::BranchType::Remote => "remote",
-            };
+        let head_oid = repo.head().ok().and_then(|h| h.target());
+        if let Some(oid) = head_oid {
             refs_by_oid.entry(oid).or_default().push(GraphRef {
-                kind: kind.into(),
-                name: name.to_string(),
+                kind: "HEAD".into(),
+                name: "HEAD".into(),
             });
         }
-    }
 
-    let _ = repo.tag_foreach(|oid, name_bytes| {
-        let raw = std::str::from_utf8(name_bytes).unwrap_or("");
-        let short = raw.strip_prefix("refs/tags/").unwrap_or(raw).to_string();
-        let resolved = repo
-            .find_object(oid, None)
-            .and_then(|o| o.peel(git2::ObjectType::Commit))
-            .map(|c| c.id())
-            .unwrap_or(oid);
-        refs_by_oid.entry(resolved).or_default().push(GraphRef {
-            kind: "tag".into(),
-            name: short,
-        });
-        true
-    });
-
-    let mut walk = repo.revwalk()?;
-    walk.set_sorting(Sort::TIME | Sort::TOPOLOGICAL)?;
-    walk.push_glob("refs/heads/*")?;
-    let _ = walk.push_glob("refs/remotes/*");
-    let _ = walk.push_glob("refs/tags/*");
-
-    let mut out: Vec<GraphCommit> = Vec::with_capacity(limit);
-    let mut seen: std::collections::HashSet<git2::Oid> = std::collections::HashSet::new();
-    for oid_result in walk {
-        if out.len() >= limit {
-            break;
+        if let Ok(branches) = repo.branches(None) {
+            for b in branches {
+                let Ok((branch, btype)) = b else { continue };
+                let Ok(Some(name)) = branch.name() else {
+                    continue;
+                };
+                let Some(oid) = branch.get().target() else {
+                    continue;
+                };
+                let kind = match btype {
+                    git2::BranchType::Local => "head",
+                    git2::BranchType::Remote => "remote",
+                };
+                refs_by_oid.entry(oid).or_default().push(GraphRef {
+                    kind: kind.into(),
+                    name: name.to_string(),
+                });
+            }
         }
-        let oid = oid_result?;
-        if !seen.insert(oid) {
-            continue;
-        }
-        let commit = repo.find_commit(oid)?;
-        let ts = commit_time(&commit);
-        let id_str = oid.to_string();
-        let short_id: String = id_str.chars().take(7).collect();
-        let parents: Vec<String> = commit.parent_ids().map(|p| p.to_string()).collect();
-        let mut refs = refs_by_oid.get(&oid).cloned().unwrap_or_default();
-        refs.sort_by(|a, b| {
-            let order = |k: &str| match k {
-                "HEAD" => 0,
-                "head" => 1,
-                "remote" => 2,
-                "tag" => 3,
-                _ => 4,
-            };
-            order(&a.kind)
-                .cmp(&order(&b.kind))
-                .then_with(|| a.name.cmp(&b.name))
-        });
-        out.push(GraphCommit {
-            id: id_str,
-            short_id,
-            parents,
-            author_name: commit.author().name().unwrap_or("unknown").to_string(),
-            author_email: commit.author().email().unwrap_or("").to_string(),
-            timestamp: ts.to_rfc3339(),
-            summary: commit.summary().unwrap_or("").to_string(),
-            refs,
-        });
-    }
 
-    Ok(out)
+        let _ = repo.tag_foreach(|oid, name_bytes| {
+            let raw = std::str::from_utf8(name_bytes).unwrap_or("");
+            let short = raw.strip_prefix("refs/tags/").unwrap_or(raw).to_string();
+            let resolved = repo
+                .find_object(oid, None)
+                .and_then(|o| o.peel(git2::ObjectType::Commit))
+                .map(|c| c.id())
+                .unwrap_or(oid);
+            refs_by_oid.entry(resolved).or_default().push(GraphRef {
+                kind: "tag".into(),
+                name: short,
+            });
+            true
+        });
+
+        let mut walk = repo.revwalk()?;
+        walk.set_sorting(Sort::TIME | Sort::TOPOLOGICAL)?;
+        walk.push_glob("refs/heads/*")?;
+        let _ = walk.push_glob("refs/remotes/*");
+        let _ = walk.push_glob("refs/tags/*");
+
+        let mut out: Vec<GraphCommit> = Vec::with_capacity(limit);
+        let mut seen: std::collections::HashSet<git2::Oid> = std::collections::HashSet::new();
+        for oid_result in walk {
+            if out.len() >= limit {
+                break;
+            }
+            let oid = oid_result?;
+            if !seen.insert(oid) {
+                continue;
+            }
+            let commit = repo.find_commit(oid)?;
+            let ts = commit_time(&commit);
+            let id_str = oid.to_string();
+            let short_id: String = id_str.chars().take(7).collect();
+            let parents: Vec<String> = commit.parent_ids().map(|p| p.to_string()).collect();
+            let mut refs = refs_by_oid.get(&oid).cloned().unwrap_or_default();
+            refs.sort_by(|a, b| {
+                let order = |k: &str| match k {
+                    "HEAD" => 0,
+                    "head" => 1,
+                    "remote" => 2,
+                    "tag" => 3,
+                    _ => 4,
+                };
+                order(&a.kind)
+                    .cmp(&order(&b.kind))
+                    .then_with(|| a.name.cmp(&b.name))
+            });
+            out.push(GraphCommit {
+                id: id_str,
+                short_id,
+                parents,
+                author_name: commit.author().name().unwrap_or("unknown").to_string(),
+                author_email: commit.author().email().unwrap_or("").to_string(),
+                timestamp: ts.to_rfc3339(),
+                summary: commit.summary().unwrap_or("").to_string(),
+                refs,
+            });
+        }
+
+        Ok(out)
     })
 }
 
@@ -126,19 +126,16 @@ pub fn get_commit_detail_impl(
     let repo_meta = get_repository_impl(db, id)?;
     let repo = open(&repo_meta.path)?;
 
-    let oid = git2::Oid::from_str(oid_hex)
-        .map_err(|e| AppError::Other(format!("invalid oid: {}", e)))?;
+    let oid =
+        git2::Oid::from_str(oid_hex).map_err(|e| AppError::Other(format!("invalid oid: {}", e)))?;
     let commit = repo.find_commit(oid)?;
 
     let new_tree = commit.tree()?;
     let parent_tree = commit.parent(0).ok().and_then(|p| p.tree().ok());
     let mut diff_opts = git2::DiffOptions::new();
     diff_opts.ignore_filemode(true);
-    let diff = repo.diff_tree_to_tree(
-        parent_tree.as_ref(),
-        Some(&new_tree),
-        Some(&mut diff_opts),
-    )?;
+    let diff =
+        repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&new_tree), Some(&mut diff_opts))?;
     let stats = diff.stats()?;
 
     let mut files: Vec<FilePatch> = Vec::new();
@@ -158,9 +155,7 @@ pub fn get_commit_detail_impl(
             .map(|p| p.display().to_string())
             .filter(|s| !s.is_empty());
 
-        let is_binary = delta
-            .flags()
-            .contains(git2::DiffFlags::BINARY);
+        let is_binary = delta.flags().contains(git2::DiffFlags::BINARY);
 
         let status = match delta.status() {
             git2::Delta::Added => "added",
@@ -195,8 +190,7 @@ pub fn get_commit_detail_impl(
                         let Ok(line) = patch.line_in_hunk(hi, li) else {
                             continue;
                         };
-                        let mut content = String::from_utf8_lossy(line.content())
-                            .to_string();
+                        let mut content = String::from_utf8_lossy(line.content()).to_string();
                         if content.ends_with('\n') {
                             content.pop();
                         }

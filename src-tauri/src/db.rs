@@ -83,7 +83,9 @@ impl Db {
             "ALTER TABLE repositories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
             [],
         );
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     pub fn with<F, R>(&self, f: F) -> AppResult<R>

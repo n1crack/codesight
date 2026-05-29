@@ -6,8 +6,8 @@ use crate::repo::get_repository_impl;
 use super::{
     cached, commit_time, current_head, open, AuthorshipReport, CodeHygieneReport, ConflictHit,
     DepManifest, DependenciesReport, GeneratedFile, GitignoreCheck, GitignoreCoverage,
-    HistorySecretHit, HistorySecretReport, LargeFile, PresenceCheck, QualityReport, RepoHygieneReport,
-    RiskyFile, SecretHit, SecretsHeadReport, TodoHit,
+    HistorySecretHit, HistorySecretReport, LargeFile, PresenceCheck, QualityReport,
+    RepoHygieneReport, RiskyFile, SecretHit, SecretsHeadReport, TodoHit,
 };
 
 const MAX_BLOB_SCAN_BYTES: usize = 512 * 1024; // 512 KB cap per file
@@ -204,7 +204,14 @@ fn mask_secret(s: &str) -> String {
     }
     let prefix: String = s.chars().take(4).collect();
     let stars = "*".repeat(total.saturating_sub(8).min(20));
-    let suffix: String = s.chars().rev().take(4).collect::<String>().chars().rev().collect();
+    let suffix: String = s
+        .chars()
+        .rev()
+        .take(4)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect();
     format!("{}{}{}", prefix, stars, suffix)
 }
 
@@ -371,9 +378,8 @@ pub fn run_quality_scan_impl(db: &crate::db::Db, id: i64) -> AppResult<QualityRe
                 // Secret scan
                 for (re, p) in &secret_res {
                     for m in re.find_iter(text) {
-                        let line = text[..m.start()].chars().filter(|c| *c == '\n').count()
-                            as u32
-                            + 1;
+                        let line =
+                            text[..m.start()].chars().filter(|c| *c == '\n').count() as u32 + 1;
                         let masked = mask_secret(m.as_str());
                         secrets.push(SecretHit {
                             path: path.clone(),
@@ -407,8 +413,7 @@ pub fn run_quality_scan_impl(db: &crate::db::Db, id: i64) -> AppResult<QualityRe
                 if let Some(re) = todo_re.as_ref() {
                     for (i, line) in text.lines().enumerate() {
                         if let Some(cap) = re.captures(line) {
-                            let kind = cap.get(1).map(|m| m.as_str()).unwrap_or("TODO")
-                                .to_string();
+                            let kind = cap.get(1).map(|m| m.as_str()).unwrap_or("TODO").to_string();
                             let trimmed = line.trim();
                             let text_short = if trimmed.chars().count() > 200 {
                                 trimmed.chars().take(200).collect::<String>() + "…"
@@ -446,7 +451,9 @@ pub fn run_quality_scan_impl(db: &crate::db::Db, id: i64) -> AppResult<QualityRe
                 let covers = GitignoreCoverage {
                     env_files: blob.contains(".env"),
                     node_modules: blob.contains("node_modules"),
-                    target: blob.contains("/target") || blob.starts_with("target") || blob.contains("\ntarget"),
+                    target: blob.contains("/target")
+                        || blob.starts_with("target")
+                        || blob.contains("\ntarget"),
                     dist_build: blob.contains("dist") || blob.contains("build"),
                     ide: blob.contains(".idea") || blob.contains(".vscode"),
                     os_files: blob.contains(".ds_store") || blob.contains("thumbs.db"),
@@ -554,7 +561,8 @@ pub fn run_quality_scan_impl(db: &crate::db::Db, id: i64) -> AppResult<QualityRe
         let mut total_commits = 0u32;
         let mut bot_commits = 0u32;
         let mut signed_commits = 0u32;
-        let mut generic_emails: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut generic_emails: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
         if let Ok(mut walk) = repo.revwalk() {
             let _ = walk.set_sorting(Sort::TIME);
             let _ = walk.push_glob("refs/heads/*");
@@ -667,7 +675,7 @@ where
             continue;
         }
         scanned = scanned.saturating_add(1);
-        if scanned % 50 == 0 {
+        if scanned.is_multiple_of(50) {
             on_progress(scanned, total);
         }
         let commit = match repo.find_commit(oid) {
@@ -730,8 +738,7 @@ where
 
             for (re, pattern) in &secret_res {
                 for m in re.find_iter(text) {
-                    let line =
-                        text[..m.start()].chars().filter(|c| *c == '\n').count() as u32 + 1;
+                    let line = text[..m.start()].chars().filter(|c| *c == '\n').count() as u32 + 1;
                     let masked = mask_secret(m.as_str());
                     hits.push(HistorySecretHit {
                         blob_oid: blob_id.to_string(),

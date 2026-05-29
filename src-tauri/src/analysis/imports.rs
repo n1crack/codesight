@@ -113,11 +113,7 @@ pub fn get_import_graph_impl(db: &crate::db::Db, id: i64) -> AppResult<ImportGra
         let mut nodes: Vec<ImportNode> = node_paths
             .into_iter()
             .map(|path| {
-                let language = languages
-                    .get(&path)
-                    .copied()
-                    .unwrap_or("Other")
-                    .to_string();
+                let language = languages.get(&path).copied().unwrap_or("Other").to_string();
                 ImportNode {
                     in_degree: in_deg.get(&path).copied().unwrap_or(0),
                     out_degree: out_deg.get(&path).copied().unwrap_or(0),
@@ -167,11 +163,7 @@ fn source_language(path: &str) -> Option<&'static str> {
     }
 }
 
-fn read_blob(
-    repo: &git2::Repository,
-    tree: &git2::Tree<'_>,
-    path: &str,
-) -> Option<String> {
+fn read_blob(repo: &git2::Repository, tree: &git2::Tree<'_>, path: &str) -> Option<String> {
     let entry = tree.get_path(std::path::Path::new(path)).ok()?;
     let object = entry.to_object(repo).ok()?;
     let blob = object.peel_to_blob().ok()?;
@@ -257,10 +249,7 @@ fn extract_py_imports(
     external: &mut u32,
 ) {
     for cap in re.captures_iter(text) {
-        let spec = cap
-            .get(1)
-            .or_else(|| cap.get(2))
-            .map(|m| m.as_str());
+        let spec = cap.get(1).or_else(|| cap.get(2)).map(|m| m.as_str());
         let Some(spec) = spec else { continue };
         if let Some(resolved) = resolve_py_specifier(from_path, spec, all_paths) {
             if resolved != from_path {
@@ -290,9 +279,7 @@ fn extract_rust_imports(
             *external = external.saturating_add(1);
             continue;
         }
-        if let Some(resolved) =
-            resolve_rust_use(from_path, kind, &segments, all_paths)
-        {
+        if let Some(resolved) = resolve_rust_use(from_path, kind, &segments, all_paths) {
             if resolved != from_path {
                 out.insert((from_path.to_string(), resolved));
             }
@@ -315,9 +302,7 @@ fn extract_rust_imports(
 
 // ---------- Resolution helpers ----------
 
-const TS_EXTS: &[&str] = &[
-    ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".d.ts",
-];
+const TS_EXTS: &[&str] = &[".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".d.ts"];
 
 const TS_INDEX: &[&str] = &[
     "index.ts",
@@ -350,9 +335,7 @@ fn normalize(path: &str) -> Option<String> {
         match seg {
             "" | "." => continue,
             ".." => {
-                if out.pop().is_none() {
-                    return None;
-                }
+                out.pop()?;
             }
             _ => out.push(seg),
         }
@@ -367,7 +350,8 @@ fn resolve_ts_specifier(
 ) -> Option<String> {
     // Skip externals quickly: bare specifiers (e.g. `react`, `lodash/fp`) and
     // protocol URLs are not in the repo tree.
-    let is_relative = spec.starts_with("./") || spec.starts_with("../") || spec == "." || spec == "..";
+    let is_relative =
+        spec.starts_with("./") || spec.starts_with("../") || spec == "." || spec == "..";
     let is_alias = spec.starts_with("@/");
     if !is_relative && !is_alias {
         return None;
@@ -536,11 +520,7 @@ fn resolve_rust_use(
     None
 }
 
-fn resolve_rust_mod(
-    from_path: &str,
-    name: &str,
-    all_paths: &HashSet<String>,
-) -> Option<String> {
+fn resolve_rust_mod(from_path: &str, name: &str, all_paths: &HashSet<String>) -> Option<String> {
     let dir = dir_of(from_path);
     // For `mod foo;` declared in `bar.rs`, Rust looks for `bar/foo.rs`.
     // For `mod.rs` / `lib.rs` / `main.rs`, lookups are relative to the same dir.

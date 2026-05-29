@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@11.4.0",
   "description": "Local Git Intelligence Layer — a free, offline desktop app that turns .git directories into deterministic metrics, heuristic insights, and graph-aware structural views.",
   "license": "AGPL-3.0-or-later",
   "author": "Yusuf Özdemir <yusuf@ozdemir.be>",

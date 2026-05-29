@@ -157,10 +157,10 @@ pub fn get_global_heatmap_impl(
             acc
         });
 
-    let start = NaiveDate::from_ymd_opt(year, 1, 1)
-        .ok_or_else(|| AppError::Other("bad year".into()))?;
-    let end = NaiveDate::from_ymd_opt(year, 12, 31)
-        .ok_or_else(|| AppError::Other("bad year".into()))?;
+    let start =
+        NaiveDate::from_ymd_opt(year, 1, 1).ok_or_else(|| AppError::Other("bad year".into()))?;
+    let end =
+        NaiveDate::from_ymd_opt(year, 12, 31).ok_or_else(|| AppError::Other("bad year".into()))?;
     let mut days: Vec<HeatmapDay> = Vec::with_capacity(366);
     let mut total = 0u32;
     let mut max_count = 0u32;

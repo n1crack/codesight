@@ -255,11 +255,15 @@ const ALLOWED_TERMINALS: &[&str] = &[
 
 pub fn open_in_terminal_impl(terminal: &str, path: &str) -> AppResult<()> {
     if !ALLOWED_TERMINALS.contains(&terminal) {
-        return Err(AppError::Other(format!("unsupported terminal: {}", terminal)));
+        return Err(AppError::Other(format!(
+            "unsupported terminal: {}",
+            terminal
+        )));
     }
 
     let result = spawn_terminal(terminal, path);
-    result.map_err(|e| AppError::Other(format!("could not launch terminal '{}': {}", terminal, e)))?;
+    result
+        .map_err(|e| AppError::Other(format!("could not launch terminal '{}': {}", terminal, e)))?;
     Ok(())
 }
 
@@ -444,48 +448,48 @@ pub fn checkout_branch_impl(db: &Db, id: i64, branch_name: &str) -> AppResult<()
         .map_err(|e| AppError::Other(format!("open repo failed: {}", e)))?;
 
     // Find local branch first; fall back to a remote branch (creates a tracking local).
-    let (target_ref_name, target_oid) =
-        match repo.find_branch(branch_name, git2::BranchType::Local) {
-            Ok(b) => {
-                let r = b.into_reference();
-                let name = r
-                    .name()
-                    .ok_or_else(|| AppError::Other("branch has no ref name".into()))?
-                    .to_string();
-                let oid = r
-                    .target()
-                    .ok_or_else(|| AppError::Other("branch ref missing target".into()))?;
-                (name, oid)
-            }
-            Err(_) => {
-                // Try remote, e.g. "origin/foo".
-                let remote = repo
-                    .find_branch(branch_name, git2::BranchType::Remote)
-                    .map_err(|e| {
-                        AppError::Other(format!("branch not found: {} ({})", branch_name, e))
-                    })?;
-                let target = remote
-                    .get()
-                    .target()
-                    .ok_or_else(|| AppError::Other("remote branch has no target".into()))?;
-                let local_name = branch_name
-                    .splitn(2, '/')
-                    .nth(1)
-                    .unwrap_or(branch_name);
-                let commit = repo.find_commit(target).map_err(|e| {
-                    AppError::Other(format!("could not load commit: {}", e))
+    let (target_ref_name, target_oid) = match repo.find_branch(branch_name, git2::BranchType::Local)
+    {
+        Ok(b) => {
+            let r = b.into_reference();
+            let name = r
+                .name()
+                .ok_or_else(|| AppError::Other("branch has no ref name".into()))?
+                .to_string();
+            let oid = r
+                .target()
+                .ok_or_else(|| AppError::Other("branch ref missing target".into()))?;
+            (name, oid)
+        }
+        Err(_) => {
+            // Try remote, e.g. "origin/foo".
+            let remote = repo
+                .find_branch(branch_name, git2::BranchType::Remote)
+                .map_err(|e| {
+                    AppError::Other(format!("branch not found: {} ({})", branch_name, e))
                 })?;
-                let new_branch = repo
-                    .branch(local_name, &commit, false)
-                    .map_err(|e| AppError::Other(format!("create local branch failed: {}", e)))?;
-                let r = new_branch.into_reference();
-                let name = r
-                    .name()
-                    .ok_or_else(|| AppError::Other("branch has no ref name".into()))?
-                    .to_string();
-                (name, target)
-            }
-        };
+            let target = remote
+                .get()
+                .target()
+                .ok_or_else(|| AppError::Other("remote branch has no target".into()))?;
+            let local_name = branch_name
+                .split_once('/')
+                .map(|x| x.1)
+                .unwrap_or(branch_name);
+            let commit = repo
+                .find_commit(target)
+                .map_err(|e| AppError::Other(format!("could not load commit: {}", e)))?;
+            let new_branch = repo
+                .branch(local_name, &commit, false)
+                .map_err(|e| AppError::Other(format!("create local branch failed: {}", e)))?;
+            let r = new_branch.into_reference();
+            let name = r
+                .name()
+                .ok_or_else(|| AppError::Other("branch has no ref name".into()))?
+                .to_string();
+            (name, target)
+        }
+    };
 
     let object = repo
         .find_object(target_oid, None)
@@ -549,7 +553,10 @@ const ALLOWED_GIT_CLIENTS: &[&str] = &[
 
 pub fn open_in_git_client_impl(client: &str, path: &str) -> AppResult<()> {
     if !ALLOWED_GIT_CLIENTS.contains(&client) {
-        return Err(AppError::Other(format!("unsupported git client: {}", client)));
+        return Err(AppError::Other(format!(
+            "unsupported git client: {}",
+            client
+        )));
     }
     spawn_git_client(client, path)
         .map_err(|e| AppError::Other(format!("could not launch git client '{}': {}", client, e)))?;
@@ -642,12 +649,10 @@ pub fn get_git_config_impl(db: &Db, id: i64) -> AppResult<GitConfigView> {
     let local = repo.config().ok();
     let global = git2::Config::open_default().ok();
 
-    let read_local = |key: &str| -> Option<String> {
-        local.as_ref().and_then(|c| c.get_string(key).ok())
-    };
-    let read_global = |key: &str| -> Option<String> {
-        global.as_ref().and_then(|c| c.get_string(key).ok())
-    };
+    let read_local =
+        |key: &str| -> Option<String> { local.as_ref().and_then(|c| c.get_string(key).ok()) };
+    let read_global =
+        |key: &str| -> Option<String> { global.as_ref().and_then(|c| c.get_string(key).ok()) };
 
     let head_branch = repo
         .head()
@@ -738,11 +743,7 @@ pub fn set_git_user_impl(
     Ok(())
 }
 
-fn apply_string_entry(
-    config: &mut git2::Config,
-    key: &str,
-    value: Option<&str>,
-) -> AppResult<()> {
+fn apply_string_entry(config: &mut git2::Config, key: &str, value: Option<&str>) -> AppResult<()> {
     match value {
         Some(v) if !v.trim().is_empty() => config
             .set_str(key, v.trim())
@@ -919,7 +920,10 @@ fn find_template(id: &str) -> AppResult<&'static HookTemplate> {
 }
 
 fn hook_path(repo_path: &str, hook_name: &str) -> PathBuf {
-    PathBuf::from(repo_path).join(".git").join("hooks").join(hook_name)
+    PathBuf::from(repo_path)
+        .join(".git")
+        .join("hooks")
+        .join(hook_name)
 }
 
 pub fn install_hook_impl(db: &Db, id: i64, template_id: &str) -> AppResult<()> {
@@ -1040,7 +1044,9 @@ pub fn discover_repos_impl(folder: &str) -> AppResult<Vec<DiscoveredRepo>> {
         if entry.file_type().is_dir() && entry.file_name() == ".git" {
             if let Some(parent) = entry.path().parent() {
                 if GitRepository::open(parent).is_ok() {
-                    let canonical = parent.canonicalize().unwrap_or_else(|_| parent.to_path_buf());
+                    let canonical = parent
+                        .canonicalize()
+                        .unwrap_or_else(|_| parent.to_path_buf());
                     let name = derive_name(&canonical);
                     found.push(DiscoveredRepo {
                         path: canonical.display().to_string(),
@@ -1204,9 +1210,8 @@ pub fn set_tag_repos_impl(db: &Db, tag_id: i64, repo_ids: Vec<i64>) -> AppResult
             "DELETE FROM repo_tag_links WHERE tag_id = ?1",
             params![tag_id],
         )?;
-        let mut stmt = conn.prepare(
-            "INSERT OR IGNORE INTO repo_tag_links (repo_id, tag_id) VALUES (?1, ?2)",
-        )?;
+        let mut stmt =
+            conn.prepare("INSERT OR IGNORE INTO repo_tag_links (repo_id, tag_id) VALUES (?1, ?2)")?;
         for rid in repo_ids {
             stmt.execute(params![rid, tag_id])?;
         }

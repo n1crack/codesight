@@ -192,7 +192,10 @@ pub struct AuthorShare {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum OwnershipAlert {
     #[serde(rename_all = "camelCase")]
-    BusFactorOne { author_name: String, author_email: String },
+    BusFactorOne {
+        author_name: String,
+        author_email: String,
+    },
     #[serde(rename_all = "camelCase")]
     HighConcentration { count: u32, threshold_pct: u32 },
     #[serde(rename_all = "camelCase")]
@@ -706,11 +709,8 @@ where
         }
         let new_tree = commit.tree()?;
         let parent_tree = commit.parent(0).ok().and_then(|p| p.tree().ok());
-        let diff = repo.diff_tree_to_tree(
-            parent_tree.as_ref(),
-            Some(&new_tree),
-            Some(&mut diff_opts),
-        )?;
+        let diff =
+            repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&new_tree), Some(&mut diff_opts))?;
         on_diff(&commit, &diff)?;
     }
     Ok(())
@@ -746,17 +746,12 @@ const CONVENTIONAL_TYPES: &[&str] = &[
 
 pub(crate) fn classify_subject(subject: &str) -> Option<&'static str> {
     let trimmed = subject.trim_start();
-    let prefix_end = trimmed
-        .find(|c: char| c == '(' || c == ':' || c == ' ' || c == '!')
-        .unwrap_or(0);
+    let prefix_end = trimmed.find(['(', ':', ' ', '!']).unwrap_or(0);
     if prefix_end == 0 {
         return None;
     }
     let prefix = &trimmed[..prefix_end].to_ascii_lowercase();
-    CONVENTIONAL_TYPES
-        .iter()
-        .find(|t| **t == prefix)
-        .copied()
+    CONVENTIONAL_TYPES.iter().find(|t| **t == prefix).copied()
 }
 
 pub(crate) fn classify_language(filename: &str) -> &'static str {
