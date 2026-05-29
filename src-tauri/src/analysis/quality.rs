@@ -541,7 +541,7 @@ pub fn run_quality_scan_impl(db: &crate::db::Db, id: i64) -> AppResult<QualityRe
             sa.cmp(&sb).then(a.path.cmp(&b.path))
         });
         todos.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
-        large_files.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));
+        large_files.sort_by_key(|e| std::cmp::Reverse(e.size_bytes));
         large_files.truncate(40);
         generated_files.sort_by(|a, b| a.path.cmp(&b.path));
 

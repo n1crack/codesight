@@ -341,6 +341,6 @@ pub fn list_known_authors_impl(
             last_commit_at: a.last.to_rfc3339(),
         })
         .collect();
-    out.sort_by(|a, b| b.commits.cmp(&a.commits));
+    out.sort_by_key(|e| std::cmp::Reverse(e.commits));
     Ok(out)
 }

@@ -1056,7 +1056,7 @@ pub fn discover_repos_impl(folder: &str) -> AppResult<Vec<DiscoveredRepo>> {
             }
         }
     }
-    found.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    found.sort_by_key(|e| e.name.to_lowercase());
     Ok(found)
 }
 

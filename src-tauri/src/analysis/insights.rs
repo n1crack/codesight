@@ -160,7 +160,7 @@ pub fn get_ownership_report_impl(
                 }
             })
             .collect();
-        files.sort_by(|a, b| b.total_commits.cmp(&a.total_commits));
+        files.sort_by_key(|e| std::cmp::Reverse(e.total_commits));
         files.truncate(40);
 
         let mut alerts: Vec<OwnershipAlert> = Vec::new();
@@ -411,7 +411,7 @@ pub fn get_author_specialization_impl(
                 bytes_changed: acc.bytes_changed,
             })
             .collect();
-        top_languages.sort_by(|a, b| b.bytes_changed.cmp(&a.bytes_changed));
+        top_languages.sort_by_key(|e| std::cmp::Reverse(e.bytes_changed));
         top_languages.truncate(8);
 
         let mut top_directories: Vec<DirectoryShare> = by_dir
@@ -422,7 +422,7 @@ pub fn get_author_specialization_impl(
                 bytes_changed: acc.bytes_changed,
             })
             .collect();
-        top_directories.sort_by(|a, b| b.bytes_changed.cmp(&a.bytes_changed));
+        top_directories.sort_by_key(|e| std::cmp::Reverse(e.bytes_changed));
         top_directories.truncate(8);
 
         Ok(AuthorSpecialization {
@@ -693,7 +693,7 @@ pub fn get_file_couplings_impl(
                 joint_changes: c,
             })
             .collect();
-        out.sort_by(|x, y| y.joint_changes.cmp(&x.joint_changes));
+        out.sort_by_key(|e| std::cmp::Reverse(e.joint_changes));
         out.truncate(limit);
         Ok(out)
     })
@@ -784,7 +784,7 @@ pub fn get_directory_hotspots_impl(
                 files: acc.files.len() as u32,
             })
             .collect();
-        out.sort_by(|a, b| b.commits.cmp(&a.commits));
+        out.sort_by_key(|e| std::cmp::Reverse(e.commits));
         out.truncate(limit);
         Ok(out)
     })

@@ -204,7 +204,7 @@ pub fn get_contributor_top_files_impl(
                 last_modified: acc.last.to_rfc3339(),
             })
             .collect();
-        list.sort_by(|a, b| b.commits.cmp(&a.commits));
+        list.sort_by_key(|e| std::cmp::Reverse(e.commits));
         list.truncate(limit);
         Ok(list)
     })

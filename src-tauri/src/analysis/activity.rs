@@ -226,7 +226,7 @@ pub fn get_top_contributors_impl(
             })
             .collect();
 
-        list.sort_by(|a, b| b.commits.cmp(&a.commits));
+        list.sort_by_key(|e| std::cmp::Reverse(e.commits));
         list.truncate(limit);
         Ok(list)
     })
@@ -309,7 +309,7 @@ pub fn get_language_breakdown_impl(db: &crate::db::Db, id: i64) -> AppResult<Vec
                 bytes,
             })
             .collect();
-        out.sort_by(|a, b| b.bytes.cmp(&a.bytes));
+        out.sort_by_key(|e| std::cmp::Reverse(e.bytes));
         Ok(out)
     })
 }
@@ -524,7 +524,7 @@ pub fn get_commit_message_stats_impl(
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
             .collect();
-        types.sort_by(|a, b| b.1.cmp(&a.1));
+        types.sort_by_key(|e| std::cmp::Reverse(e.1));
 
         Ok(CommitMessageStats {
             total,
